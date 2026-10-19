@@ -551,7 +551,7 @@ function showLogin(msg){
     '<button id="lg-btn" class="btn" data-a="login">Entrar</button><p id="lg-msg">'+esc(msg||'')+'</p>';
   el.hidden=false;
 }
-var unsub=null,lastWrite=0,localDirty=false,verSave=0,loggingOut=false;
+var unsub=null,lastWrite=0,lastSeen=0,localDirty=false,verSave=0,loggingOut=false;
 function onRemote(snap){
   if(snap.metadata.hasPendingWrites)return;
   var data=snap.exists?snap.data():null,cache=snap.metadata.fromCache;
@@ -559,17 +559,18 @@ function onRemote(snap){
   var first=!dbReady;dbReady=true;
   if(first){localDirty=false;clearTimeout(tSave)}
   if(data&&data.json){
-    if(data.updated&&data.updated===lastWrite){ui.sync=cache?'local':'cloud';setSync();return}
+    var up=data.updated||0;
+    if(up&&(up===lastWrite||up===lastSeen)){if(!busy&&!localDirty){ui.sync=cache?'cache':'cloud';setSync()}return}
     if(!first&&(localDirty||busy)){return}
     var s2;try{s2=JSON.parse(data.json)}catch(e){s2=null}
-    if(s2&&s2.recipes){S=norm(s2);localSave();ui.sync=cache?'local':'cloud';if(first||!ui.sheet)renderAll();else{render();setSync()}return}
+    if(s2&&s2.recipes){S=norm(s2);lastSeen=up;localSave();ui.sync=cache?'cache':'cloud';if(first||!ui.sheet)renderAll();else{render();setSync()}return}
   }
   if(first){ui.sync='saving';setSync();flush()}
 }
 function attachDb(){
-  lastWrite=0;localDirty=false;
+  lastWrite=0;lastSeen=0;localDirty=false;
   if(unsub){try{unsub()}catch(e){}unsub=null}
-  if(dbDoc.listen){unsub=dbDoc.listen(onRemote,function(){ui.sync='local';setSync()});return}
+  if(dbDoc.listen){unsub=dbDoc.listen(onRemote,function(){ui.sync='deny';setSync()});return}
   dbDoc.get().then(function(snap){onRemote({exists:snap.exists,data:function(){return snap.data()},metadata:{hasPendingWrites:false,fromCache:false}})}).catch(function(){ui.sync='local';setSync()});
 }
 function initGH(){
@@ -593,7 +594,7 @@ function initGH(){
         setSync();showLogin('');return}
       fbUser=u;$('#login').hidden=true;
       var ref=fsdb.collection('recetario').doc(u.uid).collection('data').doc('app');
-      dbDoc={get:function(){return ref.get()},set:function(o){return ref.set(o)},listen:function(ok,er){return ref.onSnapshot(ok,er)}};
+      dbDoc={get:function(){return ref.get()},set:function(o){return ref.set(o)},listen:function(ok,er){return ref.onSnapshot({includeMetadataChanges:true},ok,er)}};
       attachDb();
     });
   });
@@ -789,7 +790,7 @@ function stopCook(){ui.timers={};wakeOff();if(tick){clearInterval(tick);tick=nul
 /* ---------- guardado ---------- */
 var tSave=null,busy=false,dirty=false;
 function setSync(){
-  var m={cloud:'Guardado',saving:navigator.onLine===false?'Sin conexión · se guardará al volver':'Guardando…',local:navigator.onLine===false?'Sin conexión · guardado en el móvil':'Solo en este dispositivo',err:'Sin guardar',big:'Sin guardar: demasiados datos'};
+  var m={cloud:'Guardado',saving:navigator.onLine===false?'Sin conexión · se guardará al volver':'Guardando…',local:navigator.onLine===false?'Sin conexión · guardado en el móvil':'Solo en este dispositivo',err:'Sin guardar',cache:'Sin conexión · guardado en el móvil',deny:'Sin acceso a la nube',big:'Sin guardar: demasiados datos'};
   $('#sync').textContent=m[ui.sync]||'';
 }
 window.addEventListener('online',function(){setSync()});window.addEventListener('offline',function(){setSync()});
