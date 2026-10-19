@@ -525,8 +525,15 @@ function geminiJson(prompt,opts){
   return Promise.all(imgs.map(function(b){return toDataUrl(b).then(function(u){return u.split(',')[1]})})).then(function(bs){
     var parts=[{text:prompt}];bs.forEach(function(d){parts.push({inline_data:{mime_type:'image/jpeg',data:d}})});
     var body=JSON.stringify({contents:[{role:'user',parts:parts}],generationConfig:{responseMimeType:'application/json',temperature:0.2}});
+    // Dos formas de enviar la clave: en cabecera (la normal) y, si el navegador corta la conexión, en la dirección (petición simple, sin comprobación previa)
+    function call(i,alt){
+      var u='https://generativelanguage.googleapis.com/v1beta/models/'+GMODELS[i]+':generateContent';
+      return alt?fetch(u+'?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'text/plain'},body:body,signal:opts&&opts.signal})
+        :fetch(u,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:body,signal:opts&&opts.signal});
+    }
+    var alt=false;
     function go(i){
-      return fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GMODELS[i]+':generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:body,signal:opts&&opts.signal}).then(function(r){
+      return call(i,alt).catch(function(e){if(alt||(e&&e.name==='AbortError'))throw e;alt=true;return call(i,true)}).then(function(r){
         if(r.status===404&&i<GMODELS.length-1)return go(i+1);
         if(!r.ok)return r.json().catch(function(){return {}}).then(function(e){
           var m=(e.error&&e.error.message)||'';
