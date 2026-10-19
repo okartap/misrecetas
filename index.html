@@ -531,15 +531,25 @@ function showLogin(msg){
     '<button id="lg-btn" class="btn" data-a="login">Entrar</button><p id="lg-msg">'+esc(msg||'')+'</p>';
   el.hidden=false;
 }
+var unsub=null,lastWrite=0,localDirty=false,verSave=0,loggingOut=false;
+function onRemote(snap){
+  if(snap.metadata.hasPendingWrites)return;
+  var data=snap.exists?snap.data():null,cache=snap.metadata.fromCache;
+  if(!data&&cache)return;
+  var first=!dbReady;dbReady=true;
+  if(data&&data.json){
+    if(data.updated&&data.updated===lastWrite){ui.sync=cache?'local':'cloud';setSync();return}
+    if(localDirty||busy){return}
+    var s2;try{s2=JSON.parse(data.json)}catch(e){s2=null}
+    if(s2&&s2.recipes){S=norm(s2);localSave();ui.sync=cache?'local':'cloud';if(first||!ui.sheet)renderAll();else{render();setSync()}return}
+  }
+  if(first){ui.sync='saving';setSync();flush()}
+}
 function attachDb(){
-  dbDoc.get().then(function(snap){
-    var data=snap.exists?snap.data():null;dbReady=true;
-    if(data&&data.json){
-      var s=JSON.parse(data.json);
-      if(s&&s.recipes){S=norm(s);localSave();ui.sync='cloud';renderAll();setSync();return}
-    }
-    ui.sync='saving';setSync();return flush();
-  }).catch(function(){ui.sync='local';setSync()});
+  lastWrite=0;localDirty=false;
+  if(unsub){try{unsub()}catch(e){}unsub=null}
+  if(dbDoc.listen){unsub=dbDoc.listen(onRemote,function(){ui.sync='local';setSync()});return}
+  dbDoc.get().then(function(snap){onRemote({exists:snap.exists,data:function(){return snap.data()},metadata:{hasPendingWrites:false,fromCache:false}})}).catch(function(){ui.sync='local';setSync()});
 }
 function initGH(){
   assetsNs={
@@ -556,13 +566,19 @@ function initGH(){
     firebase.initializeApp(FB_CONFIG);fbAuth=firebase.auth();fsdb=firebase.firestore();
     try{fsdb.enablePersistence({synchronizeTabs:true}).catch(function(){})}catch(e){}
     fbAuth.onAuthStateChanged(function(u){
-      if(!u){fbUser=null;dbDoc=null;dbReady=false;ui.sync='local';setSync();showLogin('');return}
+      if(!u){if(unsub){try{unsub()}catch(e){}unsub=null}fbUser=null;dbDoc=null;dbReady=false;ui.sync='local';
+        if(loggingOut){loggingOut=false;clearLocal()}
+        setSync();showLogin('');return}
       fbUser=u;$('#login').hidden=true;
       var ref=fsdb.collection('recetario').doc(u.uid).collection('data').doc('app');
-      dbDoc={get:function(){return ref.get()},set:function(o){return ref.set(o)}};
+      dbDoc={get:function(){return ref.get()},set:function(o){return ref.set(o)},listen:function(ok,er){return ref.onSnapshot(ok,er)}};
       attachDb();
     });
   });
+}
+function clearLocal(){
+  try{var ks=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k===LS||k.indexOf('rc-ph-')===0)ks.push(k)}ks.forEach(function(k){localStorage.removeItem(k)})}catch(e){}
+  PH={};PHP={};S=seed();ui.sheet=null;ui.tab='r';renderAll();
 }
 function doLogin(){
   var em=($('#lg-mail')||{}).value,pw=($('#lg-pass')||{}).value,msg=$('#lg-msg');
@@ -730,7 +746,7 @@ function beepInit(){try{var C=window.AudioContext||window.webkitAudioContext;if(
 function beep(){try{if(ac)[0,0.35,0.7].forEach(function(t){var o=ac.createOscillator(),g=ac.createGain();o.frequency.value=880;g.gain.value=0.25;o.connect(g);g.connect(ac.destination);o.start(ac.currentTime+t);o.stop(ac.currentTime+t+0.2)})}catch(e){}try{navigator.vibrate&&navigator.vibrate([300,150,300])}catch(e){}}
 function wakeOn(){try{if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(l){wl=l}).catch(function(){})}catch(e){}}
 function wakeOff(){try{if(wl){wl.release();wl=null}}catch(e){}}
-document.addEventListener('visibilitychange',function(){if(!document.hidden&&ui.sheet&&ui.sheet.t==='cook')wakeOn()});
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&ui.sheet&&ui.sheet.t==='cook'){wakeOn();beepInit();onTick()}});
 function tmLeft(t){return t.end?Math.max(0,Math.ceil((t.end-Date.now())/1000)):t.left}
 function othersTxt(sh){
   var o=[];Object.keys(ui.timers).forEach(function(k){var t=ui.timers[k];if(t.end&&+k!==sh.i||(t.end&&sh.phase!=='step'))o.push('Paso '+(+k+1)+': '+clock(tmLeft(t)))});
@@ -756,7 +772,7 @@ function setSync(){
 }
 function localSave(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
 function save(){
-  localSave();
+  localSave();verSave++;localDirty=true;
   if(!dbDoc||!dbReady)return;
   ui.sync='saving';setSync();
   clearTimeout(tSave);tSave=setTimeout(flush,600);
@@ -764,8 +780,8 @@ function save(){
 function flush(){
   if(!dbDoc||!dbReady)return Promise.resolve();
   if(busy){dirty=true;return Promise.resolve()}
-  busy=true;
-  return dbDoc.set({json:JSON.stringify(S),updated:Date.now()}).then(function(){ui.sync='cloud'}).catch(function(){ui.sync='err'}).then(function(){
+  busy=true;var v=verSave;lastWrite=Date.now();
+  return dbDoc.set({json:JSON.stringify(S),updated:lastWrite}).then(function(){ui.sync='cloud';if(verSave===v)localDirty=false}).catch(function(){ui.sync='err'}).then(function(){
     busy=false;setSync();if(dirty){dirty=false;flush()}
   });
 }
@@ -876,7 +892,13 @@ function vPantry(){
   if(have)html+='<div class="center" style="margin-top:22px"><button class="btn ghost" data-a="have-reset">Reiniciar revisión</button></div>';
   return html+'<p class="note">Lo que marques se queda marcado hasta que pulses «Reiniciar revisión».</p>';
 }
+function shopWeekReset(){
+  if(!S.useWeek)return;
+  var k=dkey(weekDays(ui.wk)[0]);
+  if(S.cwk&&S.cwk!==k){S.checked={};S.extra.forEach(function(x){x.d=false});S.cwk=k;save()}
+}
 function vShop(){
+  shopWeekReset();
   var m=shopping(),allIds=Object.keys(m).filter(function(id){return food(id)}),ids=allIds.filter(function(id){return !S.have[id]}),hid=allIds.length-ids.length;
   var total=ids.length+S.extra.length,done=ids.filter(function(id){return S.checked[id]}).length+S.extra.filter(function(e){return e.d}).length;
   var html='<div class="hd"><h2>Lista de la compra</h2><span class="rc-m mono">'+done+' de '+total+' comprados</span></div>'+
@@ -1224,7 +1246,7 @@ document.addEventListener('click',function(e){
     }
     case 'ajustes':ui.stash=null;ui.sheet={t:'ajustes',pending:null};renderSheet();break;
     case 'login':doLogin();break;
-    case 'logout':if(fbAuth){ui.sheet=null;renderSheet();fbAuth.signOut()}break;
+    case 'logout':if(fbAuth){loggingOut=true;ui.sheet=null;renderSheet();fbAuth.signOut()}break;
     case 'bk-save':{
       var bb=new Blob([JSON.stringify(S)],{type:'application/json'}),ba=document.createElement('a');
       ba.href=URL.createObjectURL(bb);ba.download='mi-recetario-'+dkey(new Date())+'.json';document.body.appendChild(ba);ba.click();
@@ -1348,8 +1370,8 @@ document.addEventListener('click',function(e){
     case 'plan-step':{var en=planList(b.dataset.day,b.dataset.slot)[i];en.s=Math.max(1,en.s+d);save();render();break}
     case 'plan-del':planList(b.dataset.day,b.dataset.slot).splice(i,1);save();render();break;
     case 'toggle-week':S.useWeek=!S.useWeek;save();render();break;
-    case 'check':S.checked[id]=!S.checked[id];save();render();break;
-    case 'extra-check':S.extra[i].d=!S.extra[i].d;save();render();break;
+    case 'check':S.checked[id]=!S.checked[id];S.cwk=dkey(weekDays(ui.wk)[0]);save();render();break;
+    case 'extra-check':S.extra[i].d=!S.extra[i].d;S.cwk=dkey(weekDays(ui.wk)[0]);save();render();break;
     case 'extra-del':S.extra.splice(i,1);save();render();break;
     case 'extra-add':addExtra();break;
     case 'uncheck':S.checked={};S.extra.forEach(function(x){x.d=false});save();render();break;
