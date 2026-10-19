@@ -1,4 +1,5 @@
 {
+ "id": "misrecetas-app",
  "name": "Mis Recetas",
  "short_name": "Mis Recetas",
  "start_url": "./",
