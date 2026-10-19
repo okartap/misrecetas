@@ -1171,6 +1171,7 @@ function sFoods(){
   var html='<div class="ph"><h3>Alimentos</h3><button class="x" data-a="close-sheet" aria-label="Cerrar">×</button></div>'+
     '<p class="rc-m" style="margin:0 0 4px">Todos los valores son por 100 g (o 100 ml). Puedes corregir cualquiera.</p>'+
     ((S.foods.some(function(f){return f.ej})||S.recipes.some(function(r){return r.ej}))?'<div class="center" style="margin-top:10px"><button class="btn danger sm" data-a="clear-ej">'+(ui.confirm?'Pulsa otra vez para borrar los ejemplos':'Borrar alimentos y recetas de ejemplo')+'</button></div>':'')+
+    '<div class="center" style="margin-top:10px"><button class="btn ghost sm" data-a="fimp">Importar lista de alimentos</button></div>'+
     '<h4>Nuevo alimento</h4>'+
     '<div class="center"><button class="btn sm" data-a="scan">Escanear código de barras</button>'+(sampleNs&&(GH||sampleImgs)?'<label class="btn ghost sm">Foto de la etiqueta<input id="fl-img" class="sr" type="file" accept="image/*"></label>':'')+'</div>'+
     (ui.fbusy?'<p class="rc-m" style="margin:8px 0 0">'+esc(ui.fbusy)+'</p>':'')+(ui.fmsg?'<p class="rc-m" style="margin:8px 0 0;color:var(--accent)">'+esc(ui.fmsg)+'</p>':'')+(ui.fnote?'<p class="rc-m" style="margin:8px 0 0;color:var(--brand)">'+esc(ui.fnote)+'</p>':'')+
@@ -1204,6 +1205,38 @@ function sFoodPick(){
     '<input id="fp-q" class="inp" type="search" placeholder="Escribe el inicio: pol, arr, que…" value="'+esc(ui.fq)+'" autocomplete="off" autocapitalize="off" style="margin:10px 0 4px">'+
     (list.length?'<div class="fcards">'+list.map(function(f){return '<button class="fc" data-a="food-pick" data-id="'+esc(f.id)+'"><span class="fcn">'+esc(f.n)+'</span><b>'+nf0.format(f.k)+' kcal</b></button>'}).join('')+'</div>':'<p class="empty">Ningún alimento empieza así.</p>')+
     '<div class="center" style="margin-top:14px"><button class="btn ghost" data-a="foods-new-pick">＋ Crear alimento nuevo</button></div>';
+}
+/* ---------- importar lista de alimentos ---------- */
+function catGuess(t){t=nz(t||'');
+  if(/congel/.test(t))return 'z';if(/lact|huevo|queso|yogur|leche/.test(t))return 'l';if(/carn|pesc|embut|marisc/.test(t))return 'p';
+  if(/verdur|fruta|hortal|tuberc/.test(t))return 'v';if(/harin|pan|cereal|pasta|arroz|legum|conserv|aceite|salsa|aderez|despensa|suplem|basico/.test(t))return 'd';return 'o'}
+function fiParse(txt){
+  var j;try{j=JSON.parse(txt)}catch(e){try{j=parseJ(txt)}catch(x){return null}}
+  var out=[],add=function(o,cat){if(!o||typeof o!=='object')return;
+    var n=String(o.nombre||o.n||o.name||'').trim();if(!n)return;
+    var u=String(o.unidad||o.unit||'').toLowerCase(),pu=+(o.peso_ud||o.peso_unidad||o.u||0);
+    out.push({n:n.slice(0,60),k:+(o.kcal||o.k||0)||0,p:+(o.proteinas||o.p||0)||0,h:+(o.hc||o.hidratos||o.h||0)||0,g:+(o.grasas||o.g||0)||0,
+      t:pu>0?'ud':(/ml/.test(u)?'ml':'g'),u:pu>0?pu:0,c:CATS[o.c]?o.c:catGuess(o.categoria||cat||n)});
+  };
+  (Array.isArray(j)?j:[j]).forEach(function(x){if(x&&Array.isArray(x.ingredientes))x.ingredientes.forEach(function(i){add(i,x.categoria)});else if(x&&Array.isArray(x.alimentos))x.alimentos.forEach(function(i){add(i,x.categoria)});else add(x,'')});
+  var have={};S.foods.forEach(function(f){have[nz(f.n)]=1});
+  out.forEach(function(f){f.dup=!!have[nz(f.n)];f.on=!f.dup});
+  return out;
+}
+function sFImport(){
+  var sh=ui.sheet,h='<div class="ph"><h3>Importar alimentos</h3><button class="x" data-a="close-sheet" aria-label="Cerrar">×</button></div>';
+  if(!sh.list){
+    return h+'<p class="rc-m" style="margin:6px 0 0">Pega aquí la lista en formato de datos (JSON), con nombre, kcal, proteínas, hidratos y grasas por 100 g o 100 ml. Antes de crear nada podrás revisarla.</p>'+
+      '<textarea id="fi-text" class="inp" style="min-height:180px;margin-top:10px;font-family:var(--f-mono);font-size:13px" placeholder="[ { &quot;nombre&quot;: ..., &quot;kcal&quot;: ... } ]">'+esc(sh.text||'')+'</textarea>'+
+      (sh.err?'<p class="rc-m" style="color:var(--accent);margin-top:8px">'+esc(sh.err)+'</p>':'')+
+      '<div class="center" style="margin-top:14px"><button class="btn" data-a="fi-read">Revisar lista</button></div>';
+  }
+  var n=sh.list.filter(function(f){return f.on}).length;
+  h+='<p class="rc-m" style="margin:6px 0 8px">Desmarca lo que no quieras crear. Valores por 100 g o 100 ml.</p>';
+  h+=sh.list.map(function(f,i){
+    return '<button class="it'+(f.on?' done':'')+'" data-a="fi-tog" data-i="'+i+'"><span class="cb"></span><span class="n">'+esc(f.n)+'<small style="display:block;color:var(--muted);font-size:12px">'+CATS[f.c]+' · '+(f.t==='ud'?'por unidades ('+f.u+' g)':f.t)+(f.dup?' · ya existe':'')+'</small></span><span class="a mono">'+nf0.format(f.k)+' kcal<br>P '+nf1.format(f.p)+' · H '+nf1.format(f.h)+' · G '+nf1.format(f.g)+'</span></button>';
+  }).join('');
+  return h+'<div class="center" style="margin-top:16px"><button class="btn" data-a="fi-ok"'+(n?'':' disabled')+'>Crear '+n+(n==1?' alimento':' alimentos')+'</button><button class="btn ghost" data-a="fi-back">Atrás</button></div>';
 }
 function dayName(d){return DN[(d.getDay()+6)%7]+' '+d.getDate()}
 function hasMeals(k){var p=S.plan[k];return !!p&&SLOTS.some(function(x){return (p[x]||[]).length})}
@@ -1315,7 +1348,7 @@ function renderSheet(){
   if(!sh){el.hidden=true;el.innerHTML='';return}
   var old=el.querySelector('.panel'),top=old?old.scrollTop:0;
   keepFocus(function(){
-    el.innerHTML='<div class="scrim" data-a="close-sheet"></div><div class="panel'+(sh.t==='cook'?' full':'')+'" role="dialog" aria-modal="true">'+(sh.t==='recipe'?sRecipe():sh.t==='foods'?sFoods():sh.t==='foodpick'?sFoodPick():sh.t==='ficha'?sFicha():sh.t==='cook'?sCook():sh.t==='import'?sImport():sh.t==='ajustes'?sAjustes():sh.t==='scan'?sScan():sh.t==='copy'?sCopy():sh.t==='batch'?sBatch():sPick())+'</div>';
+    el.innerHTML='<div class="scrim" data-a="close-sheet"></div><div class="panel'+(sh.t==='cook'?' full':'')+'" role="dialog" aria-modal="true">'+(sh.t==='recipe'?sRecipe():sh.t==='foods'?sFoods():sh.t==='foodpick'?sFoodPick():sh.t==='ficha'?sFicha():sh.t==='cook'?sCook():sh.t==='import'?sImport():sh.t==='ajustes'?sAjustes():sh.t==='scan'?sScan():sh.t==='copy'?sCopy():sh.t==='batch'?sBatch():sh.t==='fimport'?sFImport():sPick())+'</div>';
     el.hidden=false;
   });
   var p=el.querySelector('.panel');if(p)p.scrollTop=top;
@@ -1504,6 +1537,15 @@ document.addEventListener('click',function(e){
       if(ti>=0)arr.splice(ti,1);else arr.push(tv);
       b.setAttribute('aria-pressed',ti<0?'true':'false');break;
     }
+    case 'fimp':ui.stash=ui.sheet;ui.sheet={t:'fimport',text:'',list:null,err:''};renderSheet();break;
+    case 'fi-read':{var fsh=ui.sheet,fl2=fiParse(fsh.text||'');if(!fl2||!fl2.length){fsh.err='No he podido leer la lista. Comprueba que la has pegado entera.';renderSheet();break}fsh.err='';fsh.list=fl2;renderSheet();var fpn=document.querySelector('#sheet .panel');if(fpn)fpn.scrollTop=0;break}
+    case 'fi-tog':ui.sheet.list[i].on=!ui.sheet.list[i].on;renderSheet();break;
+    case 'fi-back':ui.sheet.list=null;renderSheet();break;
+    case 'fi-ok':{
+      var made=0,base=Date.now().toString(36);
+      ui.sheet.list.forEach(function(f,ix){if(!f.on)return;S.foods.push({id:'c'+base+ix,n:f.n,k:f.k,p:f.p,h:f.h,g:f.g,t:f.t,u:f.u,c:f.c});made++});
+      save();closeSheet();toast(made+(made==1?' alimento creado':' alimentos creados'));break;
+    }
     case 'food-edit-cancel':ui.fedit=null;renderSheet();break;
     case 'food-save':{
       var fe=food(id);if(!fe)break;
@@ -1592,6 +1634,7 @@ document.addEventListener('input',function(e){
   else if(t.id==='goal'){S.goal=parseInt(t.value.replace(/\D/g,''),10)||0;save()}
   else if(t.id==='r-name'&&sh&&sh.draft){sh.draft.n=t.value}
   else if(t.id==='im-text'&&sh&&sh.t==='import'){sh.text=t.value}
+  else if(t.id==='fi-text'&&sh&&sh.t==='fimport'){sh.text=t.value}
   else if(/^fn-(name|k|p|h|g|u)$/.test(t.id)){ui.fdraft[t.id==='fn-name'?'n':t.id.slice(3)]=t.value}
   else if(t.id==='sc-z'){applyZoom(t.value)}
   else if(t.id==='aj-key'){lsSet('rc-gkey',t.value.replace(/[^\x21-\x7E]/g,''));var ok=document.getElementById('aj-ok');if(ok)ok.innerHTML=keyInfo()}
