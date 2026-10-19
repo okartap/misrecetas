@@ -640,8 +640,10 @@ function stopScan(){
 function scanMsg(t){var e=document.getElementById('sc-msg');if(e)e.textContent=t||''}
 function sScan(){
   return '<div class="ph"><h3>Escanear código</h3><button class="x" data-a="scan-cancel" aria-label="Cerrar">×</button></div>'+
-    '<p class="rc-m" style="margin:6px 0 10px">Apunta la cámara al código de barras del producto.</p>'+
-    '<div id="sc-box"></div><p class="rc-m" id="sc-msg" style="margin:8px 0 0;color:var(--accent)"></p>'+
+    '<p class="rc-m" style="margin:6px 0 10px">Pon el código dentro del recuadro, a un palmo del móvil. Si no enfoca, aléjalo un poco.</p>'+
+    '<div id="sc-box"></div><div id="sc-zoom" class="center" hidden style="margin-top:8px"><span class="rc-m">Zoom</span><input id="sc-z" type="range" min="1" max="5" step="0.1" value="1" style="flex:1;max-width:240px"></div><p class="rc-m" id="sc-msg" style="margin:8px 0 0;color:var(--accent)"></p>'+
+    '<div class="center" style="margin-top:10px"><label class="btn ghost sm">Hacer foto del código<input id="sc-photo" class="sr" type="file" accept="image/*" capture="environment"></label></div>'+
+    '<p class="rc-m" style="margin:4px 0 0">Si la cámara no lo lee, haz una foto con buena luz y con el código ocupando casi toda la foto.</p>'+
     '<label class="lbl" for="sc-code">O escribe el número del código</label><input id="sc-code" class="inp" type="text" inputmode="numeric" placeholder="8410000000000" autocomplete="off" style="text-align:center">'+
     '<div class="center" style="margin-top:12px"><button class="btn sm" data-a="sc-go">Buscar</button><button class="btn ghost sm" data-a="scan-cancel">Cancelar</button></div>';
 }
@@ -653,11 +655,46 @@ function startScan(){
     var F=window.Html5QrcodeSupportedFormats||{};
     try{
       scanner=new Html5Qrcode('sc-box',{formatsToSupport:[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E].filter(Boolean),experimentalFeatures:{useBarCodeDetectorIfSupported:true},verbose:false});
-      scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:140}},function(t){onCode(t)},function(){}).catch(function(){scanMsg('No puedo abrir la cámara. Revisa el permiso del navegador o escribe el número.')});
+      var cfg={fps:15,aspectRatio:1.333,qrbox:function(w,h){return {width:Math.floor(w*0.9),height:Math.max(80,Math.floor(h*0.45))}},
+        videoConstraints:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080},advanced:[{focusMode:'continuous'}]}};
+      scanner.start({facingMode:'environment'},cfg,function(t){onCode(t)},function(){}).then(function(){setupZoom()}).catch(function(){scanMsg('No puedo abrir la cámara. Revisa el permiso, usa «Hacer foto del código» o escribe el número.')});
     }catch(e){scanMsg('No puedo abrir la cámara. Escribe el número del código.')}
   }
   if(window.Html5Qrcode)go();
   else loadScripts(['https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'],function(err){if(err||!window.Html5Qrcode)scanMsg('No se ha podido cargar el lector. Escribe el número del código.');else go()});
+}
+function setupZoom(){
+  try{
+    var cap=scanner&&scanner.getRunningTrackCapabilities&&scanner.getRunningTrackCapabilities();
+    if(!cap||!cap.zoom||!(cap.zoom.max>cap.zoom.min))return;
+    var z=document.getElementById('sc-z'),box=document.getElementById('sc-zoom');if(!z||!box)return;
+    z.min=cap.zoom.min;z.max=Math.min(cap.zoom.max,8);z.step=cap.zoom.step||0.1;
+    var start=Math.min(+z.max,Math.max(+z.min,2));z.value=start;box.hidden=false;applyZoom(start);
+  }catch(e){}
+}
+function applyZoom(v){try{if(scanner&&scanner.applyVideoConstraints)scanner.applyVideoConstraints({advanced:[{zoom:+v}]}).catch(function(){})}catch(e){}}
+// Leer el código desde una foto: primero el lector, y si no puede, la IA lee los números impresos
+function codePrompt(){return 'En esta imagen hay un código de barras de un producto (EAN-13, EAN-8 o UPC). Lee los dígitos impresos debajo de las barras. Responde SOLO con JSON: {"code":"solo los dígitos, sin espacios"}. Si no se leen con seguridad, {"code":""}.'}
+function scanPhoto(file){
+  stopScan();scanBusy=false;scanMsg('Leyendo la foto…');
+  resizePhoto(file,function(blob){
+    if(!blob){scanMsg('No he podido abrir la foto.');return}
+    var F=window.Html5QrcodeSupportedFormats||{},tries=[];
+    function viaReader(){
+      if(!window.Html5Qrcode)return Promise.reject();
+      var d=document.getElementById('sc-tmp');if(!d){d=document.createElement('div');d.id='sc-tmp';d.style.display='none';document.body.appendChild(d)}
+      var r=new Html5Qrcode('sc-tmp',{formatsToSupport:[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E].filter(Boolean),verbose:false});
+      return r.scanFile(new File([blob],'codigo.jpg',{type:'image/jpeg'}),false);
+    }
+    function viaAI(){
+      if(!sampleNs||(GH&&!lsGet('rc-gkey')))return Promise.reject();
+      scanMsg('La IA está leyendo los números del código…');
+      return sampleNs.json(codePrompt(),{images:[blob]}).then(function(j){var c=String((j&&j.code)||'').replace(/\D/g,'');if(c.length<8)throw 0;return c});
+    }
+    viaReader().catch(viaAI).then(function(c){if(ui.sheet&&ui.sheet.t==='scan')onCode(c)}).catch(function(){
+      if(ui.sheet&&ui.sheet.t==='scan')scanMsg('No he podido leer el código en la foto. Prueba con más luz, más cerca, o escribe el número.');
+    });
+  },2000,0.9);
 }
 function backToFoods(){stopScan();ui.sheet={t:'foods'};renderSheet()}
 function onCode(raw){
@@ -1433,6 +1470,7 @@ document.addEventListener('input',function(e){
   else if(t.id==='r-name'&&sh&&sh.draft){sh.draft.n=t.value}
   else if(t.id==='im-text'&&sh&&sh.t==='import'){sh.text=t.value}
   else if(/^fn-(name|k|p|h|g|u)$/.test(t.id)){ui.fdraft[t.id==='fn-name'?'n':t.id.slice(3)]=t.value}
+  else if(t.id==='sc-z'){applyZoom(t.value)}
   else if(t.id==='aj-key'){lsSet('rc-gkey',t.value.replace(/[^\x21-\x7E]/g,''));var ok=document.getElementById('aj-ok');if(ok)ok.innerHTML=keyInfo()}
   else if(t.id==='r-notes'&&sh&&sh.draft){sh.draft.notes=t.value}
   else if(t.dataset.st!==undefined&&sh&&sh.draft){sh.draft.steps[+t.dataset.st].t=t.value}
@@ -1446,6 +1484,7 @@ document.addEventListener('change',function(e){
   if(t.id==='goal'||t.id==='pgoal'){render();return}
   if(t.id==='fn-t'){ui.fdraft.t=t.value;return}
   if(t.id==='fn-c'){ui.fdraft.c=t.value;return}
+  if(t.id==='sc-photo'&&sh&&sh.t==='scan'){var sp=t.files&&t.files[0];if(sp)scanPhoto(sp);return}
   if(t.id==='fl-img'&&sh&&sh.t==='foods'){var lf=t.files&&t.files[0];if(lf)readLabel(lf);return}
   if(t.id==='bk-file'&&sh&&sh.t==='ajustes'){
     var bf=t.files&&t.files[0];if(!bf)return;
