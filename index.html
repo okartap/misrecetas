@@ -339,12 +339,12 @@ r6:{tipos:['d','s'],dif:1,tp:5,tc:0,mets:[{m:'frio',t:'',min:5}],
 };
 function recFill(r){
   var x=(r.ej&&RD[r.id])||{};
-  if(!r.tipos)r.tipos=(x.tipos||[]).slice();
+  if(!Array.isArray(r.tipos))r.tipos=(x.tipos||[]).slice();
   if(r.dif===undefined)r.dif=x.dif||0;
   if(r.tp===undefined)r.tp=x.tp||0;
   if(r.tc===undefined)r.tc=x.tc||0;
-  if(!r.mets)r.mets=JSON.parse(JSON.stringify(x.mets||[]));
-  if(!r.steps)r.steps=JSON.parse(JSON.stringify(x.steps||[]));
+  if(!Array.isArray(r.mets))r.mets=JSON.parse(JSON.stringify(x.mets||[]));
+  if(!Array.isArray(r.steps))r.steps=JSON.parse(JSON.stringify(x.steps||[]));
   if(r.notes===undefined)r.notes=x.notes||'';
   if(r.fav===undefined)r.fav=false;
   if(r.fid===undefined)r.fid='';
@@ -366,11 +366,20 @@ function seed(){
 function norm(s){
   var d=seed();
   ['goal','protGoal','useWeek','plan','want','extra','checked','foods','recipes'].forEach(function(k){if(s[k]===undefined||s[k]===null)s[k]=d[k]});
+  if(!Array.isArray(s.foods))s.foods=d.foods;if(!Array.isArray(s.recipes))s.recipes=d.recipes;
+  s.foods=s.foods.filter(function(f){return f&&f.id});
   var seedIds={};FOODS.forEach(function(a){seedIds[a[0]]=1});
   s.foods.forEach(function(f){
     if(seedIds[f.id]&&f.ej===undefined)f.ej=1;
     if(seedIds[f.id]&&f.p===undefined&&MAC[f.id]){f.p=MAC[f.id][0];f.h=MAC[f.id][1];f.g=MAC[f.id][2]}
   });
+  // Blindaje: si algún dato guardado viene incompleto o dañado, se corrige en vez de romper la app
+  if(!Array.isArray(s.foods))s.foods=d.foods;if(!Array.isArray(s.recipes))s.recipes=d.recipes;
+  if(!Array.isArray(s.want))s.want=[];if(!Array.isArray(s.extra))s.extra=[];
+  if(!s.plan||typeof s.plan!=='object')s.plan={};if(!s.checked||typeof s.checked!=='object')s.checked={};
+  s.foods=s.foods.filter(function(f){return f&&f.id}).map(function(f){f.n=String(f.n||'Sin nombre');f.k=+f.k||0;f.t=['g','ml','ud'].indexOf(f.t)>=0?f.t:'g';f.u=+f.u||0;f.c=CATS[f.c]?f.c:'o';return f});
+  s.recipes=s.recipes.filter(function(r){return r&&r.id}).map(function(r){r.n=String(r.n||'Sin nombre');r.s=Math.max(1,+r.s||1);r.ing=Array.isArray(r.ing)?r.ing.filter(function(l){return l&&l.f}):[];return r});
+  s.want=s.want.filter(function(w){return w&&w.r});
   s.recipes.forEach(recFill);
   return s;
 }
