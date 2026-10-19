@@ -381,6 +381,9 @@ function norm(s){
   s.recipes=s.recipes.filter(function(r){return r&&r.id}).map(function(r){r.n=String(r.n||'Sin nombre');r.s=Math.max(1,+r.s||1);r.ing=Array.isArray(r.ing)?r.ing.filter(function(l){return l&&l.f}):[];return r});
   s.want=s.want.filter(function(w){return w&&w.r});
   s.recipes.forEach(recFill);
+  // Menús de hace más de un año se borran solos para que los datos no crezcan sin fin
+  var lim=new Date();lim.setFullYear(lim.getFullYear()-1);var limK=dkey(lim);
+  Object.keys(s.plan).forEach(function(k){if(k<limK)delete s.plan[k]});
   s.extra.forEach(function(x,i){if(!x.id)x.id='e'+i+Date.now().toString(36)});
   if(!s.chk||typeof s.chk!=='object'){
     s.chk={};var o={},k0=s.cwk||dkey(weekDays(0)[0]);
@@ -576,6 +579,7 @@ function initGH(){
   };
   assetsNs['delete']=function(id){return photoStore.del(id).then(function(){return {deleted:true}})};
   sampleNs={json:geminiJson};sampleImgs={maxCount:3};
+  try{if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}
   render();
   if(!FB_CONFIG){ui.sync='local';renderAll();return}
   ui.sync='saving';setSync();
