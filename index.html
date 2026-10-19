@@ -531,9 +531,10 @@ function geminiJson(prompt,opts){
       return alt?fetch(u+'?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'text/plain'},body:body,signal:opts&&opts.signal})
         :fetch(u,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:body,signal:opts&&opts.signal});
     }
-    var alt=false;
+    var alt=lsGet('rc-galt')==='1';
     function go(i){
-      return call(i,alt).catch(function(e){if(alt||(e&&e.name==='AbortError'))throw e;alt=true;return call(i,true)}).then(function(r){
+      return call(i,alt).catch(function(e){if(e&&e.name==='AbortError')throw e;alt=!alt;return call(i,alt)}).then(function(r){
+        lsSet('rc-galt',alt?'1':'0');
         if(r.status===404&&i<GMODELS.length-1)return go(i+1);
         if(!r.ok)return r.json().catch(function(){return {}}).then(function(e){
           var m=(e.error&&e.error.message)||'';
