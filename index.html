@@ -1120,8 +1120,8 @@ function foodEdit(f){
     '<label class="fl">Proteínas (g)<input id="fe-p" class="inp" type="number" inputmode="decimal" value="'+(f.p===undefined?'':f.p)+'"></label>'+
     '<label class="fl">Hidratos (g)<input id="fe-h" class="inp" type="number" inputmode="decimal" value="'+(f.h===undefined?'':f.h)+'"></label>'+
     '<label class="fl">Grasas (g)<input id="fe-g" class="inp" type="number" inputmode="decimal" value="'+(f.g===undefined?'':f.g)+'"></label>'+
-    '<label class="fl">Cómo se compra'+unitSel('fe-t',f.t)+'</label>'+
-    '<label class="fl">Gramos por unidad<input id="fe-u" class="inp" type="number" inputmode="decimal" value="'+(f.u||'')+'" placeholder="Ej. 60"></label>'+
+    '<label class="fl'+(f.t==='ud'?'':' full')+'" id="fe-tl">Cómo se compra'+unitSel('fe-t',f.t)+'</label>'+
+    '<label class="fl" id="fe-ul"'+(f.t==='ud'?'':' hidden')+'>Peso de 1 unidad (g)<input id="fe-u" class="inp" type="number" inputmode="decimal" value="'+(f.u||'')+'" placeholder="Ej. 60"></label>'+
     '<label class="fl full">Categoría'+catSel('fe-c',f.c)+'</label></div>'+
     (used?'<p class="rc-m" style="margin:0">Se usa en «'+esc(used.n)+'». Si cambias cómo se compra, revisa las cantidades de tus recetas.</p>':'')+
     (f.code?'<p class="rc-m" style="margin:0">Código de barras: '+esc(f.code)+'</p>':'')+
@@ -1141,8 +1141,8 @@ function sFoods(){
     '<label class="fl">Proteínas (g)<input id="fn-p" class="inp" type="number" inputmode="decimal" placeholder="0" value="'+esc(fdv('p'))+'"></label>'+
     '<label class="fl">Hidratos (g)<input id="fn-h" class="inp" type="number" inputmode="decimal" placeholder="0" value="'+esc(fdv('h'))+'"></label>'+
     '<label class="fl">Grasas (g)<input id="fn-g" class="inp" type="number" inputmode="decimal" placeholder="0" value="'+esc(fdv('g'))+'"></label>'+
-    '<label class="fl">Cómo se compra'+unitSel('fn-t',ui.fdraft.t)+'</label>'+
-    '<label class="fl">Gramos por unidad<input id="fn-u" class="inp" type="number" inputmode="decimal" placeholder="Ej. 60" value="'+esc(fdv('u'))+'"></label>'+
+    '<label class="fl'+(ui.fdraft.t==='ud'?'':' full')+'" id="fn-tl">Cómo se compra'+unitSel('fn-t',ui.fdraft.t)+'</label>'+
+    '<label class="fl" id="fn-ul"'+(ui.fdraft.t==='ud'?'':' hidden')+'>Peso de 1 unidad (g)<input id="fn-u" class="inp" type="number" inputmode="decimal" placeholder="Ej. 60" value="'+esc(fdv('u'))+'"></label>'+
     '<label class="fl full">Categoría'+catSel('fn-c',ui.fdraft.c)+'</label>'+
     '<button class="btn full" data-a="food-add">Añadir alimento</button></div>';
   Object.keys(CATS).forEach(function(c){
@@ -1524,7 +1524,13 @@ document.addEventListener('input',function(e){
 document.addEventListener('change',function(e){
   var t=e.target,sh=ui.sheet;
   if(t.id==='goal'||t.id==='pgoal'){render();return}
-  if(t.id==='fn-t'){ui.fdraft.t=t.value;return}
+  if(t.id==='fn-t'||t.id==='fe-t'){
+    var px=t.id.slice(0,2),isU=t.value==='ud',ul=document.getElementById(px+'-ul'),tl=document.getElementById(px+'-tl');
+    if(ul)ul.hidden=!isU;if(tl)tl.classList.toggle('full',!isU);
+    if(px==='fn')ui.fdraft.t=t.value;
+    if(isU){var ui_=document.getElementById(px+'-u');if(ui_)setTimeout(function(){ui_.focus()},50)}
+    return;
+  }
   if(t.id==='fn-c'){ui.fdraft.c=t.value;return}
   if(t.id==='sc-photo'&&sh&&sh.t==='scan'){var sp=t.files&&t.files[0];if(sp)scanPhoto(sp);return}
   if(t.id==='fl-img'&&sh&&sh.t==='foods'){var lf=t.files&&t.files[0];if(lf)readLabel(lf);return}
