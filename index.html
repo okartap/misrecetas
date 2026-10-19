@@ -1277,16 +1277,17 @@ function sPick(){
         '<div class="center" style="margin-top:16px"><button class="btn" data-a="pk-food-ok">Añadir a '+SLN[slot].toLowerCase()+'</button><button class="btn ghost" data-a="pk-food-back">Atrás</button></div>';
     }
   }
-  var mode=canF?(sh.mode||'r'):'r';
-  if(mode==='f'){
-    var fl=S.foods.filter(function(f){return !q||(' '+nz(f.n)).indexOf(' '+q)>=0||nz(f.n).indexOf(q)>=0}).sort(function(a,b){return a.n.localeCompare(b.n,'es')});
-    var frow=function(f){return '<button class="pk" data-a="pk-food" data-id="'+esc(f.id)+'"><span>'+esc(f.n)+'</span><b>'+nf0.format(f.k)+' kcal / 100 '+(f.t==='ml'?'ml':'g')+'</b></button>'};
+  if(canF){
+    var fl=S.foods.filter(function(f){return !q||nz(f.n).indexOf(q)>=0}).sort(function(a,b){return a.n.localeCompare(b.n,'es')});
+    var frow=function(f){return '<button class="pk" data-a="pk-food" data-id="'+esc(f.id)+'"><span>'+esc(f.n)+'</span><b>Alimento · '+nf0.format(f.k)+' kcal / 100 '+(f.t==='ml'?'ml':'g')+'</b></button>'};
+    var rg=list.filter(function(r){return r.tipos.indexOf(slot)>=0}),rr=list.filter(function(r){return r.tipos.indexOf(slot)<0});
     var fg=fl.filter(function(f){return (f.tipos||[]).indexOf(slot)>=0}),fr=fl.filter(function(f){return (f.tipos||[]).indexOf(slot)<0});
-    body=(fg.length?'<h4>Para '+PARA[slot]+'</h4>'+fg.map(frow).join(''):'')+(fr.length?(fg.length?'<h4>Todos los alimentos</h4>':'')+fr.map(frow).join(''):'');
+    body=((rg.length||fg.length)?'<h4>Para '+PARA[slot]+'</h4>'+rg.map(row).join('')+fg.map(frow).join(''):'')+
+      (rr.length?'<h4>Recetas</h4>'+rr.map(row).join(''):'')+
+      (fr.length?'<h4>Alimentos</h4>'+fr.map(frow).join(''):'');
   }
   return '<div class="ph"><h3>'+(canF?'Añadir a '+SLN[slot].toLowerCase():'Elige una receta')+'</h3><button class="x" data-a="close-sheet" aria-label="Cerrar">×</button></div>'+
-    (canF?'<div class="chips" style="justify-content:center"><button class="chip" data-a="pk-mode" data-v="r" aria-pressed="'+(mode==='r')+'">Recetas</button><button class="chip" data-a="pk-mode" data-v="f" aria-pressed="'+(mode==='f')+'">Alimentos</button></div>':'')+
-    '<input id="pk-q" class="inp" type="search" placeholder="'+(mode==='f'?'Buscar alimento':'Buscar receta')+'" value="'+esc(ui.pq)+'" autocomplete="off" style="margin:10px 0 4px">'+(body||'<p class="empty">Sin resultados.</p>');
+    '<input id="pk-q" class="inp" type="search" placeholder="'+(canF?'Buscar receta o alimento':'Buscar receta')+'" value="'+esc(ui.pq)+'" autocomplete="off" style="margin:10px 0 4px">'+(body||'<p class="empty">Sin resultados.</p>');
 }
 
 /* ---------- pintado ---------- */
