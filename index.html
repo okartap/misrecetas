@@ -520,7 +520,7 @@ function parseJ(t){
 }
 var GMODELS=['gemini-2.5-flash','gemini-flash-latest'];
 function geminiJson(prompt,opts){
-  var key=lsGet('rc-gkey').replace(/[^A-Za-z0-9_\-]/g,'');if(!key)return Promise.reject({code:'no_key'});
+  var key=lsGet('rc-gkey').replace(/[^\x21-\x7E]/g,'');if(!key)return Promise.reject({code:'no_key'});
   var imgs=(opts&&opts.images)||[];
   return Promise.all(imgs.map(function(b){return toDataUrl(b).then(function(u){return u.split(',')[1]})})).then(function(bs){
     var parts=[{text:prompt}];bs.forEach(function(d){parts.push({inline_data:{mime_type:'image/jpeg',data:d}})});
@@ -611,8 +611,8 @@ function doLogin(){
 }
 function keyInfo(){
   var k=lsGet('rc-gkey');if(!k)return '';
-  var ok=/^AIza[A-Za-z0-9_\-]{35}$/.test(k);
-  return (ok?'✓ Clave guardada':'⚠ Esta clave no tiene el formato de Gemini (empieza por AIza y tiene 39 caracteres). Cópiala otra vez')+' · termina en «'+esc(k.slice(-4))+'» · '+k.length+' caracteres';
+  var ok=/^AIza[A-Za-z0-9_\-]{35}$/.test(k)||/^AQ\.[A-Za-z0-9_\-.]{20,}$/.test(k);
+  return (ok?'✓ Clave guardada':'⚠ Esta clave no parece de Gemini (empieza por «AQ.» o por «AIza»). Cópiala otra vez')+' · termina en «'+esc(k.slice(-4))+'» · '+k.length+' caracteres';
 }
 function sAjustes(){
   var sh=ui.sheet,h='<div class="ph"><h3>Ajustes</h3><button class="x" data-a="close-sheet" aria-label="Cerrar">×</button></div>';
@@ -1234,7 +1234,7 @@ document.addEventListener('click',function(e){
     case 'tf':ui.tf=b.dataset.v;render();break;
     case 'import':ui.stash=null;ui.sheet={t:'import',text:'',imgs:[],busy:false,err:'',ctl:null};renderSheet();break;
     case 'imp-go':impRun(ui.sheet);break;
-    case 'aj-save':{var ke=document.getElementById('aj-key');if(ke){lsSet('rc-gkey',ke.value.replace(/[^A-Za-z0-9_\-]/g,''));ke.blur()}toast(lsGet('rc-gkey')?'Clave guardada':'No hay clave');break}
+    case 'aj-save':{var ke=document.getElementById('aj-key');if(ke){lsSet('rc-gkey',ke.value.replace(/[^\x21-\x7E]/g,''));ke.blur()}toast(lsGet('rc-gkey')?'Clave guardada':'No hay clave');break}
     case 'scan':ui.sheet={t:'scan',started:false};renderSheet();break;
     case 'scan-cancel':backToFoods();break;
     case 'sc-go':onCode((document.getElementById('sc-code')||{}).value);if(!scanBusy)scanMsg('Escribe un número de código válido');break;
@@ -1413,7 +1413,7 @@ function addExtra(){
   var el=$('#extra-new'),t=el?el.value.trim():'';if(!t)return;
   S.extra.push({id:'e'+Date.now().toString(36),t:t});save();render();
 }
-document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.id==='aj-key'){e.preventDefault();e.target.blur();lsSet('rc-gkey',e.target.value.replace(/[^A-Za-z0-9_\-]/g,''));toast('Clave guardada');return}
+document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.id==='aj-key'){e.preventDefault();e.target.blur();lsSet('rc-gkey',e.target.value.replace(/[^\x21-\x7E]/g,''));toast('Clave guardada');return}
   if(e.key==='Enter'&&(e.target.id==='lg-mail'||e.target.id==='lg-pass')){e.preventDefault();doLogin();return}
   if(e.key==='Enter'&&e.target.id==='extra-new'){e.preventDefault();addExtra()}});
 document.addEventListener('input',function(e){
@@ -1425,7 +1425,7 @@ document.addEventListener('input',function(e){
   else if(t.id==='r-name'&&sh&&sh.draft){sh.draft.n=t.value}
   else if(t.id==='im-text'&&sh&&sh.t==='import'){sh.text=t.value}
   else if(/^fn-(name|k|p|h|g|u)$/.test(t.id)){ui.fdraft[t.id==='fn-name'?'n':t.id.slice(3)]=t.value}
-  else if(t.id==='aj-key'){lsSet('rc-gkey',t.value.replace(/[^A-Za-z0-9_\-]/g,''));var ok=document.getElementById('aj-ok');if(ok)ok.innerHTML=keyInfo()}
+  else if(t.id==='aj-key'){lsSet('rc-gkey',t.value.replace(/[^\x21-\x7E]/g,''));var ok=document.getElementById('aj-ok');if(ok)ok.innerHTML=keyInfo()}
   else if(t.id==='r-notes'&&sh&&sh.draft){sh.draft.notes=t.value}
   else if(t.dataset.st!==undefined&&sh&&sh.draft){sh.draft.steps[+t.dataset.st].t=t.value}
   else if(t.id==='r-serv'&&sh&&sh.draft){sh.draft.s=num(t.value);updateKcal()}
