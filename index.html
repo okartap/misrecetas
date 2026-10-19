@@ -520,7 +520,7 @@ function parseJ(t){
 }
 var GMODELS=['gemini-2.5-flash','gemini-flash-latest'];
 function geminiJson(prompt,opts){
-  var key=lsGet('rc-gkey');if(!key)return Promise.reject({code:'not_granted'});
+  var key=lsGet('rc-gkey');if(!key)return Promise.reject({code:'no_key'});
   var imgs=(opts&&opts.images)||[];
   return Promise.all(imgs.map(function(b){return toDataUrl(b).then(function(u){return u.split(',')[1]})})).then(function(bs){
     var parts=[{text:prompt}];bs.forEach(function(d){parts.push({inline_data:{mime_type:'image/jpeg',data:d}})});
@@ -530,7 +530,7 @@ function geminiJson(prompt,opts){
         if(r.status===404&&i<GMODELS.length-1)return go(i+1);
         if(!r.ok)return r.json().catch(function(){return {}}).then(function(e){
           var m=(e.error&&e.error.message)||'';
-          throw {code:r.status===429?'rate_limited':(r.status===401||r.status===403||/API key/i.test(m))?'not_granted':(r.status===400&&/image/i.test(m))?'image_rejected':'upstream_error',message:m};
+          throw {code:r.status===429?'rate_limited':(r.status===401||r.status===403||/API key/i.test(m))?'bad_key':(r.status===400&&/image/i.test(m))?'image_rejected':'upstream_error',message:m};
         });
         return r.json().then(function(d){
           var c=d.candidates&&d.candidates[0],t=c&&c.content&&c.content.parts?c.content.parts.map(function(p){return p.text||''}).join(''):'';
@@ -690,14 +690,15 @@ function readLabel(file){
       ui.fdraft=d;ui.fnote='Leído de la etiqueta con IA. Compáralo con el envase antes de añadir.';
       if(ui.sheet&&ui.sheet.t==='foods')renderSheet();
     }).catch(function(e){
-      ui.fbusy='';ui.fmsg=(e&&e.code==='cancelled')?'':(IMP_ERR[e&&e.code]||'Ha fallado la conexión con la IA. Inténtalo otra vez.');
+      ui.fbusy='';ui.fmsg=(e&&e.code==='cancelled')?'':errTxt(e);
       if(ui.sheet&&ui.sheet.t==='foods')renderSheet();
     });
   },1600,0.8);
 }
 
 /* ---------- importar receta con IA ---------- */
-var IMP_ERR={not_granted:'La IA no está disponible: falta la clave o no es válida. Revisa Ajustes.',sampling_disabled:'La IA no está disponible en esta cuenta.',rate_limited:'Demasiadas peticiones seguidas o límite de uso. Espera un poco y vuelve a intentarlo.',image_rejected:'No he podido leer alguna imagen. Prueba con otra captura.',refused:'La IA no ha querido procesar ese contenido. Cambia el texto o la imagen.',invalid_json:'No he conseguido entender la receta. Inténtalo de nuevo o pega el texto más limpio.',empty_completion:'La IA no ha devuelto nada. Inténtalo de nuevo.',prompt_too_large:'El texto es demasiado largo. Pega solo la receta.',session_expired:'Tu sesión ha caducado. Vuelve a abrir la app.'};
+var IMP_ERR={no_key:'Falta la clave de Gemini en este dispositivo. Pégala en Ajustes (cada móvil u ordenador necesita la suya pegada una vez).',bad_key:'Google no acepta la clave de Gemini. Revisa en Ajustes que esté copiada entera, sin espacios.',not_granted:'La IA no está disponible: falta la clave o no es válida. Revisa Ajustes.',sampling_disabled:'La IA no está disponible en esta cuenta.',rate_limited:'Demasiadas peticiones seguidas o límite de uso. Espera un poco y vuelve a intentarlo.',image_rejected:'No he podido leer alguna imagen. Prueba con otra captura.',refused:'La IA no ha querido procesar ese contenido. Cambia el texto o la imagen.',invalid_json:'No he conseguido entender la receta. Inténtalo de nuevo o pega el texto más limpio.',empty_completion:'La IA no ha devuelto nada. Inténtalo de nuevo.',prompt_too_large:'El texto es demasiado largo. Pega solo la receta.',session_expired:'Tu sesión ha caducado. Vuelve a abrir la app.'};
+function errTxt(e){var t=IMP_ERR[e&&e.code]||'Ha fallado la conexión con la IA. Inténtalo otra vez.';if(e&&e.message&&(e.code==='bad_key'||e.code==='upstream_error'))t+=' (Google dice: '+String(e.message).slice(0,140)+')';return t}
 function impPrompt(text,hasImg){
   var foods=S.foods.map(function(f){return f.id+'|'+f.n+'|'+f.t}).join('\n');
   return 'Convierte la receta que te doy ('+(hasImg&&text?'texto e imágenes adjuntas':hasImg?'en las imágenes adjuntas':'texto')+') a JSON para mi app de cocina. Responde SOLO con un objeto JSON, sin texto antes ni después, todo en español.\n\n'+
@@ -743,7 +744,7 @@ function impRun(sh){
   }).catch(function(e){
     if(ui.sheet!==sh)return;
     sh.busy=false;sh.ctl=null;
-    sh.err=(e&&e.code==='cancelled')?'':(IMP_ERR[e&&e.code]||'Ha fallado la conexión con la IA. Inténtalo otra vez.');
+    sh.err=(e&&e.code==='cancelled')?'':errTxt(e);
     renderSheet();
   });
 }
