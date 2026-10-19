@@ -147,6 +147,9 @@ input[type=search]{-webkit-appearance:none;appearance:none}
 .pbar i{background:var(--prot)}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fgrid .full{grid-column:1/-1}
+.fl{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);text-align:center}
+.fe{display:flex;flex-direction:column;gap:8px;padding:10px;margin-top:6px;border:1px solid var(--line);border-radius:12px}
+.fr .ed{background:none;border:0;color:var(--brand);font-size:13px;padding:6px 0;cursor:pointer}
 .pk{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:12px 2px;text-align:left}
 .pk b{font:500 15px var(--f-mono);color:var(--accent);white-space:nowrap}
 
@@ -186,7 +189,7 @@ select.inp{text-align:center;text-align-last:center}
 .want .x{margin-left:0}
 .panel .row{justify-content:center}
 .ph,.frh{display:grid;grid-template-columns:40px 1fr 40px;align-items:center}
-.ph::before,.frh::before{content:""}
+.ph::before{content:""}
 .ph h3,.fr .fn{text-align:center}
 .kbox div{align-items:center;text-align:center}
 .qrow{justify-content:center}
@@ -1101,6 +1104,24 @@ function mi(f,key,lab){
   var v=f[key];
   return '<label class="mf"><span>'+lab+'</span><input id="f'+key+'-'+esc(f.id)+'" class="inp" data-fm="'+key+'" data-id="'+esc(f.id)+'" type="number" inputmode="decimal" value="'+(v===undefined?'':v)+'"></label>';
 }
+function unitSel(id,v){return '<select id="'+id+'" class="inp"><option value="g">En gramos (g)</option><option value="ml"'+(v==='ml'?' selected':'')+'>En mililitros (ml)</option><option value="ud"'+(v==='ud'?' selected':'')+'>Por unidades</option></select>'}
+function catSel(id,v){return '<select id="'+id+'" class="inp">'+Object.keys(CATS).map(function(c){return '<option value="'+c+'"'+(v===c?' selected':'')+'>'+CATS[c]+'</option>'}).join('')+'</select>'}
+function foodUsed(id){var u=null;S.recipes.forEach(function(r){if(!u&&r.ing.some(function(l){return l.f===id}))u=r});return u}
+function foodEdit(f){
+  var used=foodUsed(f.id);
+  return '<div class="fe"><div class="fgrid">'+
+    '<label class="fl full">Nombre<input id="fe-name" class="inp" value="'+esc(f.n)+'" autocomplete="off"></label>'+
+    '<label class="fl">Kcal (por 100)<input id="fe-k" class="inp" type="number" inputmode="decimal" value="'+(f.k===undefined?'':f.k)+'"></label>'+
+    '<label class="fl">Proteínas (g)<input id="fe-p" class="inp" type="number" inputmode="decimal" value="'+(f.p===undefined?'':f.p)+'"></label>'+
+    '<label class="fl">Hidratos (g)<input id="fe-h" class="inp" type="number" inputmode="decimal" value="'+(f.h===undefined?'':f.h)+'"></label>'+
+    '<label class="fl">Grasas (g)<input id="fe-g" class="inp" type="number" inputmode="decimal" value="'+(f.g===undefined?'':f.g)+'"></label>'+
+    '<label class="fl">Cómo se compra'+unitSel('fe-t',f.t)+'</label>'+
+    '<label class="fl">Gramos por unidad<input id="fe-u" class="inp" type="number" inputmode="decimal" value="'+(f.u||'')+'" placeholder="Ej. 60"></label>'+
+    '<label class="fl full">Categoría'+catSel('fe-c',f.c)+'</label></div>'+
+    (used?'<p class="rc-m" style="margin:0">Se usa en «'+esc(used.n)+'». Si cambias cómo se compra, revisa las cantidades de tus recetas.</p>':'')+
+    (f.code?'<p class="rc-m" style="margin:0">Código de barras: '+esc(f.code)+'</p>':'')+
+    '<div class="center"><button class="btn sm" data-a="food-save" data-id="'+esc(f.id)+'">Guardar</button><button class="btn ghost sm" data-a="food-edit-cancel">Cancelar</button></div></div>';
+}
 function fdv(k){var v=ui.fdraft[k];return v===undefined||v===null?'':v}
 function sFoods(){
   var html='<div class="ph"><h3>Alimentos</h3><button class="x" data-a="close-sheet" aria-label="Cerrar">×</button></div>'+
@@ -1110,20 +1131,21 @@ function sFoods(){
     '<div class="center"><button class="btn sm" data-a="scan">Escanear código de barras</button>'+(sampleNs&&(GH||sampleImgs)?'<label class="btn ghost sm">Foto de la etiqueta<input id="fl-img" class="sr" type="file" accept="image/*"></label>':'')+'</div>'+
     (ui.fbusy?'<p class="rc-m" style="margin:8px 0 0">'+esc(ui.fbusy)+'</p>':'')+(ui.fmsg?'<p class="rc-m" style="margin:8px 0 0;color:var(--accent)">'+esc(ui.fmsg)+'</p>':'')+(ui.fnote?'<p class="rc-m" style="margin:8px 0 0;color:var(--brand)">'+esc(ui.fnote)+'</p>':'')+
     '<div class="fgrid" style="margin-top:10px">'+
-    '<input id="fn-name" class="inp full" placeholder="Nombre" autocomplete="off" value="'+esc(fdv('n'))+'">'+
-    '<input id="fn-k" class="inp" type="number" inputmode="decimal" placeholder="kcal por 100" value="'+esc(fdv('k'))+'">'+
-    '<input id="fn-p" class="inp" type="number" inputmode="decimal" placeholder="Proteínas (g)" value="'+esc(fdv('p'))+'">'+
-    '<input id="fn-h" class="inp" type="number" inputmode="decimal" placeholder="Hidratos (g)" value="'+esc(fdv('h'))+'">'+
-    '<input id="fn-g" class="inp" type="number" inputmode="decimal" placeholder="Grasas (g)" value="'+esc(fdv('g'))+'">'+
-    '<select id="fn-t" class="inp"><option value="g">Se compra en g</option><option value="ml"'+(ui.fdraft.t==='ml'?' selected':'')+'>Se compra en ml</option><option value="ud"'+(ui.fdraft.t==='ud'?' selected':'')+'>Se cuenta en unidades</option></select>'+
-    '<input id="fn-u" class="inp" type="number" inputmode="decimal" placeholder="g por unidad" value="'+esc(fdv('u'))+'">'+
-    '<select id="fn-c" class="inp">'+Object.keys(CATS).map(function(c){return '<option value="'+c+'"'+(ui.fdraft.c===c?' selected':'')+'>'+CATS[c]+'</option>'}).join('')+'</select>'+
+    '<label class="fl full">Nombre<input id="fn-name" class="inp" placeholder="Ej. Yogur griego" autocomplete="off" value="'+esc(fdv('n'))+'"></label>'+
+    '<label class="fl">Kcal (por 100)<input id="fn-k" class="inp" type="number" inputmode="decimal" placeholder="0" value="'+esc(fdv('k'))+'"></label>'+
+    '<label class="fl">Proteínas (g)<input id="fn-p" class="inp" type="number" inputmode="decimal" placeholder="0" value="'+esc(fdv('p'))+'"></label>'+
+    '<label class="fl">Hidratos (g)<input id="fn-h" class="inp" type="number" inputmode="decimal" placeholder="0" value="'+esc(fdv('h'))+'"></label>'+
+    '<label class="fl">Grasas (g)<input id="fn-g" class="inp" type="number" inputmode="decimal" placeholder="0" value="'+esc(fdv('g'))+'"></label>'+
+    '<label class="fl">Cómo se compra'+unitSel('fn-t',ui.fdraft.t)+'</label>'+
+    '<label class="fl">Gramos por unidad<input id="fn-u" class="inp" type="number" inputmode="decimal" placeholder="Ej. 60" value="'+esc(fdv('u'))+'"></label>'+
+    '<label class="fl full">Categoría'+catSel('fn-c',ui.fdraft.c)+'</label>'+
     '<button class="btn full" data-a="food-add">Añadir alimento</button></div>';
   Object.keys(CATS).forEach(function(c){
     var fs=S.foods.filter(function(f){return f.c===c}).sort(function(a,b){return a.n.localeCompare(b.n,'es')});
     if(!fs.length)return;
     html+='<h4>'+CATS[c]+'</h4>'+fs.map(function(f){
-      return '<div class="fr"><div class="frh"><span class="fn">'+esc(f.n)+'<small>'+(f.t==='ud'?'1 ud ≈ '+f.u+' g · valores por 100 g':'valores por 100 '+f.t)+'</small></span><button class="x" data-a="food-del" data-id="'+esc(f.id)+'" aria-label="Borrar alimento">×</button></div>'+
+      if(ui.fedit===f.id)return '<div class="fr">'+foodEdit(f)+'</div>';
+      return '<div class="fr"><div class="frh"><button class="ed" data-a="food-edit" data-id="'+esc(f.id)+'">Editar</button><span class="fn">'+esc(f.n)+'<small>'+(f.t==='ud'?'1 ud ≈ '+f.u+' g · valores por 100 g':'valores por 100 '+f.t)+'</small></span><button class="x" data-a="food-del" data-id="'+esc(f.id)+'" aria-label="Borrar alimento">×</button></div>'+
         '<div class="mfs">'+mi(f,'k','kcal')+mi(f,'p','Prot.')+mi(f,'h','Hidr.')+mi(f,'g','Grasas')+'</div></div>';
     }).join('');
   });
@@ -1248,7 +1270,7 @@ var tt;
 function toast(m){var e=$('#toast');e.textContent=m;e.hidden=false;clearTimeout(tt);tt=setTimeout(function(){e.hidden=true},2200)}
 function closeSheet(){
   if(ui.sheet&&ui.sheet.t==='scan')stopScan();
-  if(ui.sheet&&ui.sheet.t==='foods'){ui.fdraft={};ui.fmsg='';ui.fnote='';ui.fbusy=''}
+  if(ui.sheet&&ui.sheet.t==='foods'){ui.fdraft={};ui.fmsg='';ui.fnote='';ui.fbusy='';ui.fedit=null}
   if(ui.sheet&&ui.sheet.t==='cook')stopCook();
   if(ui.sheet&&ui.sheet.t==='import'&&ui.sheet.ctl)try{ui.sheet.ctl.abort()}catch(e){}
   if(ui.sheet&&ui.sheet.t==='recipe'&&ui.sheet.newFids)dropFids(ui.sheet.newFids);
@@ -1408,6 +1430,17 @@ document.addEventListener('click',function(e){
       }else{renderSheet();toast('Alimento añadido')}
       break;
     }
+    case 'food-edit':ui.fedit=id;renderSheet();var fen=document.getElementById('fe-name');if(fen)fen.scrollIntoView({block:'center'});break;
+    case 'food-edit-cancel':ui.fedit=null;renderSheet();break;
+    case 'food-save':{
+      var fe=food(id);if(!fe)break;
+      var en=$('#fe-name').value.trim(),et=$('#fe-t').value,eu=num($('#fe-u').value);
+      if(!en){toast('Ponle un nombre');break}
+      if(et==='ud'&&!eu){toast('Indica cuántos gramos pesa una unidad');break}
+      fe.n=en;fe.k=num($('#fe-k').value);fe.p=num($('#fe-p').value);fe.h=num($('#fe-h').value);fe.g=num($('#fe-g').value);
+      fe.t=et;fe.u=et==='ud'?eu:0;fe.c=$('#fe-c').value;delete fe.ej;
+      ui.fedit=null;save();render();renderSheet();toast('Alimento guardado');break;
+    }
     case 'food-del':{
       var used=null;
       S.recipes.forEach(function(r){if(!used&&r.ing.some(function(l){return l.f===id}))used=r});
@@ -1461,6 +1494,10 @@ function addExtra(){
 document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.id==='aj-key'){e.preventDefault();e.target.blur();lsSet('rc-gkey',e.target.value.replace(/[^\x21-\x7E]/g,''));toast('Clave guardada');return}
   if(e.key==='Enter'&&(e.target.id==='lg-mail'||e.target.id==='lg-pass')){e.preventDefault();doLogin();return}
   if(e.key==='Enter'&&e.target.id==='extra-new'){e.preventDefault();addExtra()}});
+document.addEventListener('focusin',function(e){
+  var t=e.target;if(!t||t.tagName!=='INPUT')return;
+  if(t.type==='number'||t.inputMode==='decimal'||t.inputMode==='numeric'){setTimeout(function(){try{t.select()}catch(x){}},30)}
+});
 document.addEventListener('input',function(e){
   var t=e.target,sh=ui.sheet;
   if(t.id==='q'){ui.q=t.value;render()}
