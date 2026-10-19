@@ -954,7 +954,7 @@ function vRecipes(){
     if(ui.tf)return r.tipos.indexOf(ui.tf)>=0;
     return true;
   });
-  list=list.map(function(r,i){return [r,i]}).sort(function(a,b){return (b[0].fav?1:0)-(a[0].fav?1:0)||a[1]-b[1]}).map(function(x){return x[0]});
+  list=list.slice().sort(function(a,b){return (b.fav?1:0)-(a.fav?1:0)||a.n.localeCompare(b.n,'es',{sensitivity:'base'})});
   var cards=list.map(function(r){
     var tt=(r.tp||0)+(r.tc||0),meta=[],m=perServM(r);
     if(tt)meta.push('⏱ '+mtime(tt));if(r.dif)meta.push(DIFS[r.dif]);meta.push(r.s+(r.s==1?' ración':' raciones'));
@@ -1352,7 +1352,7 @@ function sBatch(){
 }
 function sPick(){
   var q=nz(ui.pq),slot=ui.sheet.target&&ui.sheet.target!=='want'?ui.sheet.target.slot:null;
-  var list=S.recipes.map(function(r,i){return [r,i]}).filter(function(x){return !q||nz(x[0].n).indexOf(q)>=0}).sort(function(a,b){return (b[0].fav?1:0)-(a[0].fav?1:0)||a[1]-b[1]}).map(function(x){return x[0]});
+  var list=S.recipes.map(function(r,i){return [r,i]}).filter(function(x){return !q||nz(x[0].n).indexOf(q)>=0}).sort(function(a,b){return (b[0].fav?1:0)-(a[0].fav?1:0)||a[0].n.localeCompare(b[0].n,'es',{sensitivity:'base'})}).map(function(x){return x[0]});
   function row(r){var tt=(r.tp||0)+(r.tc||0);return '<button class="pk" data-a="pick" data-id="'+r.id+'"><span>'+(r.fav?'★ ':'')+esc(r.n)+'</span><b>'+nf0.format(perServ(r))+' kcal'+(tt?' · '+mtime(tt):'')+'</b></button>'}
   var body;
   if(slot){
