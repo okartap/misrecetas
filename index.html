@@ -561,7 +561,7 @@ function doLogin(){
 }
 function sAjustes(){
   var sh=ui.sheet,h='<div class="ph"><h3>Ajustes</h3><button class="x" data-a="close-sheet" aria-label="Cerrar">×</button></div>';
-  h+='<h4>IA para importar recetas</h4><p class="rc-m">Clave de Gemini. Se guarda solo en este dispositivo, no en la nube ni en GitHub.</p><input id="aj-key" class="inp" type="password" placeholder="Pega aquí la clave" value="'+esc(lsGet('rc-gkey'))+'" autocomplete="off" autocapitalize="off" style="margin-top:8px">';
+  h+='<h4>IA para importar recetas</h4><p class="rc-m">Clave de Gemini. Se guarda solo en este dispositivo, no en la nube ni en GitHub.</p><input id="aj-key" class="inp" type="password" placeholder="Pega aquí la clave" value="'+esc(lsGet('rc-gkey'))+'" autocomplete="off" autocapitalize="off" enterkeyhint="done" style="margin-top:8px"><p class="rc-m" id="aj-ok" style="margin:6px 0 0;color:var(--brand)">'+(lsGet('rc-gkey')?'✓ Clave guardada':'')+'</p><div class="center" style="margin-top:6px"><button class="btn sm" data-a="aj-save">Guardar clave</button></div>';
   h+='<h4>Copia de seguridad</h4><p class="rc-m">Guarda recetas, alimentos y menús en un archivo. Las fotos no se incluyen.</p><div class="center" style="margin-top:8px"><button class="btn ghost sm" data-a="bk-save">Descargar copia</button><label class="btn ghost sm">Restaurar copia<input id="bk-file" class="sr" type="file" accept="application/json,.json"></label></div>';
   if(sh.pending)h+='<p class="rc-m" style="color:var(--accent);margin-top:12px">Esto reemplazará todo lo que tienes ahora por el contenido de la copia.</p><div class="center"><button class="btn danger sm" data-a="bk-apply">Sí, reemplazar todo</button><button class="btn ghost sm" data-a="bk-cancel">Cancelar</button></div>';
   if(fbAuth&&fbUser)h+='<h4>Cuenta</h4><p class="rc-m">'+esc(fbUser.email||'')+'</p><div class="center"><button class="btn ghost sm" data-a="logout">Cerrar sesión</button></div>';
@@ -1022,6 +1022,7 @@ document.addEventListener('click',function(e){
     case 'tf':ui.tf=b.dataset.v;render();break;
     case 'import':ui.stash=null;ui.sheet={t:'import',text:'',imgs:[],busy:false,err:'',ctl:null};renderSheet();break;
     case 'imp-go':impRun(ui.sheet);break;
+    case 'aj-save':{var ke=document.getElementById('aj-key');if(ke){lsSet('rc-gkey',ke.value.trim());ke.blur()}toast(lsGet('rc-gkey')?'Clave guardada':'No hay clave');break}
     case 'ajustes':ui.stash=null;ui.sheet={t:'ajustes',pending:null};renderSheet();break;
     case 'login':doLogin();break;
     case 'logout':if(fbAuth){ui.sheet=null;renderSheet();fbAuth.signOut()}break;
@@ -1163,7 +1164,8 @@ function addExtra(){
   var el=$('#extra-new'),t=el?el.value.trim():'';if(!t)return;
   S.extra.push({id:'e'+Date.now().toString(36),t:t,d:false});save();render();
 }
-document.addEventListener('keydown',function(e){if(e.key==='Enter'&&(e.target.id==='lg-mail'||e.target.id==='lg-pass')){e.preventDefault();doLogin();return}
+document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.id==='aj-key'){e.preventDefault();e.target.blur();lsSet('rc-gkey',e.target.value.trim());toast('Clave guardada');return}
+  if(e.key==='Enter'&&(e.target.id==='lg-mail'||e.target.id==='lg-pass')){e.preventDefault();doLogin();return}
   if(e.key==='Enter'&&e.target.id==='extra-new'){e.preventDefault();addExtra()}});
 document.addEventListener('input',function(e){
   var t=e.target,sh=ui.sheet;
@@ -1173,7 +1175,7 @@ document.addEventListener('input',function(e){
   else if(t.id==='goal'){S.goal=parseInt(t.value.replace(/\D/g,''),10)||0;save()}
   else if(t.id==='r-name'&&sh&&sh.draft){sh.draft.n=t.value}
   else if(t.id==='im-text'&&sh&&sh.t==='import'){sh.text=t.value}
-  else if(t.id==='aj-key'){lsSet('rc-gkey',t.value.trim())}
+  else if(t.id==='aj-key'){lsSet('rc-gkey',t.value.trim());var ok=document.getElementById('aj-ok');if(ok)ok.textContent=t.value.trim()?'✓ Clave guardada':''}
   else if(t.id==='r-notes'&&sh&&sh.draft){sh.draft.notes=t.value}
   else if(t.dataset.st!==undefined&&sh&&sh.draft){sh.draft.steps[+t.dataset.st].t=t.value}
   else if(t.id==='r-serv'&&sh&&sh.draft){sh.draft.s=num(t.value);updateKcal()}
