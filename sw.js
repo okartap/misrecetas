@@ -1,5 +1,5 @@
 // Mis Recetas: guarda la app en el móvil para que abra sin cobertura
-var V='mr-v3';
+var V='mr-v4';
 var CORE=['./','index.html','manifest-v2.webmanifest','apple-touch-icon-v2.png','icon-192-v2.png','icon-512-v2.png','favicon-v2.svg','favicon-32-v2.png'];
 var LIBS=['https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js','https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js'];
 var EXT=/^https:\/\/(www\.gstatic\.com\/firebasejs\/|unpkg\.com\/html5-qrcode@|fonts\.googleapis\.com\/|fonts\.gstatic\.com\/)/;
@@ -18,7 +18,7 @@ self.addEventListener('fetch',function(e){
   if(u.origin===self.location.origin){
     if(req.mode==='navigate'||/\/$|\.html$/.test(u.pathname)){
       // Primero internet (para recibir las versiones nuevas); si no hay o tarda, la copia guardada
-      var net=fetch(req).then(function(r){if(r&&r.ok){var c=r.clone();caches.open(V).then(function(ca){ca.put('index.html',c)})}return r});
+      var net=fetch(req.url,{cache:'no-cache',credentials:'same-origin'}).then(function(r){if(r&&r.ok){var c=r.clone();caches.open(V).then(function(ca){ca.put('index.html',c)})}return r});
       e.respondWith(timeout(net,4000).catch(function(){return caches.match('index.html').then(function(m){return m||net})}));
       return;
     }
