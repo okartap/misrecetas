@@ -1211,6 +1211,7 @@ function catGuess(t){t=nz(t||'');
   if(/congel/.test(t))return 'z';if(/lact|huevo|queso|yogur|leche/.test(t))return 'l';if(/carn|pesc|embut|marisc/.test(t))return 'p';
   if(/verdur|fruta|hortal|tuberc/.test(t))return 'v';if(/harin|pan|cereal|pasta|arroz|legum|conserv|aceite|salsa|aderez|despensa|suplem|basico/.test(t))return 'd';return 'o'}
 function fiParse(txt){
+  txt=String(txt||'').replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g,'"').replace(/[\u2018\u2019]/g,"'");
   var j;try{j=JSON.parse(txt)}catch(e){try{j=parseJ(txt)}catch(x){return null}}
   var out=[],add=function(o,cat){if(!o||typeof o!=='object')return;
     var n=String(o.nombre||o.n||o.name||'').trim();if(!n)return;
