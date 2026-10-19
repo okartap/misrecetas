@@ -457,7 +457,7 @@ function photo(fid,cls){
 
 /* ---------- modo GitHub: Firebase (datos y fotos) + Gemini (importar) ---------- */
 var GH=!(window.claude&&window.claude.use);
-var FB_CONFIG=null; /*FB_CONFIG*/
+var FB_CONFIG={"apiKey":"AIzaSyAwMHC_Xqf3e3drEsZF_ekOi_mO9802J_k","authDomain":"misrecetas-c0b38.firebaseapp.com","projectId":"misrecetas-c0b38","storageBucket":"misrecetas-c0b38.firebasestorage.app","messagingSenderId":"497505958634","appId":"1:497505958634:web:c2e10c34246ad64164f593"};
 var PH={},PHP={},fbUser=null,fbAuth=null,fsdb=null,dbReady=false;
 function lsGet(k){try{return localStorage.getItem(k)||''}catch(e){return ''}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){return false}return true}
