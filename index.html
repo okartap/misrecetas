@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Mis Recetas</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Young+Serif&display=swap">
 <link rel="icon" type="image/svg+xml" href="favicon-v2.svg">
@@ -34,6 +34,8 @@
   --brand:#7BC49A; --brand-ink:#0E1A13; --accent:#FF8A66; --prot:#86BBDA; color-scheme:dark;
 }
 *{box-sizing:border-box}
+html,body{overflow-x:hidden;overscroll-behavior-x:none;touch-action:manipulation}
+#sc-box *{max-width:100%}
 body{
   background:var(--bg); color:var(--ink); font:400 15px/1.45 var(--f-body);
   padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
