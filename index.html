@@ -152,6 +152,22 @@ input[type=search]{-webkit-appearance:none;appearance:none}
 .pbar i{background:var(--prot)}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fgrid .full{grid-column:1/-1}
+.wd{padding:10px 0 10px;border-bottom:1px solid var(--line)}
+.wd-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px}
+.wd-n{font-weight:700;font-size:16px}.wd.today .wd-n{color:var(--brand)}
+.wd-k{font-size:13px;color:var(--muted)}.wd-k b{color:var(--accent);font-size:15px}
+.wd-mac{font-size:12px;color:var(--muted);margin:5px 0 3px}
+.we{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;padding:5px 0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.we-s{width:66px;flex:none;font-size:12px;color:var(--muted)}
+.we-t{flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.we-t small{display:block;font-size:11px;color:var(--muted)}
+.we-q{font-size:12px;color:var(--muted);white-space:nowrap}
+.we-ed{display:flex;align-items:center;justify-content:space-around;gap:8px;padding:6px 8px;margin:2px 0 6px 74px;border-radius:10px;background:var(--surface2)}
+.we-ed .lnk{font-size:14px}
+.danger-t{color:var(--accent)!important}
+.wd-add{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.pill{font:inherit;font-size:12px;border:1px dashed var(--line);border-radius:99px;padding:4px 10px;color:var(--brand);background:none;cursor:pointer}
+.wd-add .lnk{margin-left:auto;font-size:13px}
 .rlist{margin-top:10px}
 .rl{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .rl-main{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
@@ -953,24 +969,26 @@ function vWeek(){
   var html='<div class="wk"><button class="btn ghost" data-a="wk" data-d="-1" aria-label="Semana anterior">‹</button><div class="lab">'+weekLabel(ui.wk)+'</div><button class="btn ghost" data-a="wk" data-d="1" aria-label="Semana siguiente">›</button></div>'+
     '<div class="goals"><label class="goal" for="goal">Objetivo <input id="goal" class="inp" type="text" inputmode="numeric" value="'+(S.goal?nf0.format(S.goal):'')+'"> kcal</label><label class="goal" for="pgoal">Proteína <input id="pgoal" class="inp" type="text" inputmode="numeric" placeholder="g" value="'+(S.protGoal?nf0.format(S.protGoal):'')+'"> g</label></div>'+(ui.wk!==0?'<div class="goals" style="margin-top:-6px"><button class="btn ghost sm" data-a="wk" data-d="0">Volver a hoy</button></div>':'')+'<div class="center" style="margin:0 0 10px"><button class="btn ghost sm" data-a="week-copy">Copiar semana</button></div><div class="stack" style="margin-top:0">';
   days.forEach(function(d,i){
-    var k=dkey(d),p=S.plan[k]||{},tot=0,mt=[0,0,0];
-    SLOTS.forEach(function(s){(p[s]||[]).forEach(function(e){tot+=entK(e);var m=entM(e);mt[0]+=m[0];mt[1]+=m[1];mt[2]+=m[2]})});
-    var pct=Math.min(100,tot/goal*100);
-    html+='<section class="day'+(k===today?' today':'')+'"><div class="dh"><span class="dn">'+DN[i]+' '+d.getDate()+(k===today?' · hoy':'')+'</span><span class="dk">'+nf0.format(tot)+' kcal</span></div><div class="bar'+(tot>goal?' over':'')+'"><i style="width:'+pct+'%"></i></div>'+
-      '<div class="mac mono">P '+nf0.format(mt[0])+(pg?' / '+pg:'')+' · H '+nf0.format(mt[1])+' · G '+nf0.format(mt[2])+' g</div>'+
+    var k=dkey(d),p=S.plan[k]||{},tot=0,mt=[0,0,0],isT=k===today;
+    SLOTS.forEach(function(x){(p[x]||[]).forEach(function(e){tot+=entK(e);var m=entM(e);mt[0]+=m[0];mt[1]+=m[1];mt[2]+=m[2]})});
+    html+='<section class="wd'+(isT?' today':'')+'"><div class="wd-h"><span class="wd-n">'+DN[i].charAt(0).toUpperCase()+DN[i].slice(1)+' '+d.getDate()+(isT?' · hoy':'')+'</span><span class="wd-k mono"><b class="'+(tot>goal?'over':'')+'">'+nf0.format(tot)+'</b> / '+nf0.format(goal)+' kcal</span></div>'+
+      '<div class="bar'+(tot>goal?' over':'')+'"><i style="width:'+Math.min(100,tot/goal*100)+'%"></i></div>'+
+      '<div class="wd-mac mono">P '+nf0.format(mt[0])+(pg?' / '+nf0.format(pg):'')+' · H '+nf0.format(mt[1])+' · G '+nf0.format(mt[2])+' g</div>'+
       (pg?'<div class="bar pbar"><i style="width:'+Math.min(100,mt[0]/pg*100)+'%"></i></div>':'');
-    SLOTS.forEach(function(s){
-      var es=p[s]||[];
-      html+='<div class="slot"><div class="slot-h"><span>'+SLN[s]+'</span><button class="lnk" data-a="slot-add" data-day="'+k+'" data-slot="'+s+'">＋ Añadir</button></div>';
+    var empty=[];
+    SLOTS.forEach(function(x){
+      var es=p[x]||[];if(!es.length){empty.push(x);return}
       es.forEach(function(e,j){
-        var r=recipe(e.r);
-        html+='<div class="ent"><span class="ent-n">'+(r?esc(r.n):'Receta borrada')+'</span><span class="step"><button data-a="plan-step" data-day="'+k+'" data-slot="'+s+'" data-i="'+j+'" data-d="-1" aria-label="Menos">−</button><b>'+e.s+'</b><button data-a="plan-step" data-day="'+k+'" data-slot="'+s+'" data-i="'+j+'" data-d="1" aria-label="Más">+</button></span><span class="k mono">'+nf0.format(entK(e))+' kcal</span><button class="x" data-a="plan-del" data-day="'+k+'" data-slot="'+s+'" data-i="'+j+'" aria-label="Quitar">×</button></div>';
+        var r=recipe(e.r),key=k+'|'+x+'|'+j,open=ui.went===key,m=entM(e);
+        html+='<button class="we" data-a="went" data-k="'+key+'"><span class="we-s">'+(j?'':SLN[x])+'</span><span class="we-t">'+(r?esc(r.n):'Receta borrada')+'<small class="mono">P '+nf0.format(m[0])+' · H '+nf0.format(m[1])+' · G '+nf0.format(m[2])+'</small></span><span class="we-q mono">×'+e.s+' · '+nf0.format(entK(e))+'</span></button>';
+        if(open)html+='<div class="we-ed"><span class="step"><button data-a="plan-step" data-day="'+k+'" data-slot="'+x+'" data-i="'+j+'" data-d="-1" aria-label="Menos">−</button><b>'+e.s+'</b><button data-a="plan-step" data-day="'+k+'" data-slot="'+x+'" data-i="'+j+'" data-d="1" aria-label="Más">+</button></span>'+(r?'<button class="lnk" data-a="ficha" data-id="'+r.id+'">Ver receta</button>':'')+'<button class="lnk danger-t" data-a="plan-del" data-day="'+k+'" data-slot="'+x+'" data-i="'+j+'">Quitar</button></div>';
       });
-      html+='</div>';
     });
-    html+='<div class="center"><button class="lnk" data-a="day-copy" data-day="'+k+'">Copiar día</button></div></section>';
+    html+='<div class="wd-add">'+SLOTS.map(function(x){return '<button class="pill" data-a="slot-add" data-day="'+k+'" data-slot="'+x+'">+ '+SLN[x]+'</button>'}).join('')+
+      (hasMeals(k)?'<button class="lnk" data-a="day-copy" data-day="'+k+'">Copiar día</button>':'')+'</div></section>';
+    void empty;
   });
-  return html+'</div><p class="note">Los números junto al nombre son raciones. La pestaña Compra suma los ingredientes de esta semana.</p>';
+  return html+'</div><p class="note">Toca una comida para cambiar raciones o quitarla. «×2» son raciones. La pestaña Compra suma los ingredientes de esta semana.</p>';
 }
 function vPantry(){
   var m=shopping(),ids=Object.keys(m).filter(function(id){return food(id)});
@@ -1488,7 +1506,8 @@ document.addEventListener('click',function(e){
       save();ui.sheet=null;ui.pq='';renderAll();toast('Añadida');break;
     }
     case 'plan-step':{var en=planList(b.dataset.day,b.dataset.slot)[i];en.s=Math.max(1,en.s+d);save();render();break}
-    case 'plan-del':planList(b.dataset.day,b.dataset.slot).splice(i,1);save();render();break;
+    case 'plan-del':planList(b.dataset.day,b.dataset.slot).splice(i,1);ui.went=null;save();render();break;
+    case 'went':ui.went=ui.went===b.dataset.k?null:b.dataset.k;render();break;
     case 'toggle-week':S.useWeek=!S.useWeek;save();render();break;
     case 'check':ckTog(id);save();render();break;
     case 'extra-check':ckTog('x:'+S.extra[i].id);save();render();break;
