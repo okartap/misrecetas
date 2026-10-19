@@ -36,6 +36,9 @@
 *{box-sizing:border-box}
 html,body{overflow-x:hidden;overscroll-behavior-x:none;touch-action:manipulation}
 #sc-box *{max-width:100%}
+#sheet{overflow:hidden;overscroll-behavior:none}
+#sheet .panel{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#sheet .panel>*{max-width:100%}
 body{
   background:var(--bg); color:var(--ink); font:400 15px/1.45 var(--f-body);
   padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
