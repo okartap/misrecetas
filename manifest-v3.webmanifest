@@ -1,22 +1,22 @@
 {
- "id": "misrecetas-app",
+ "id": "misrecetas-app-v3",
  "name": "Mis Recetas",
  "short_name": "Mis Recetas",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
- "background_color": "#F1F3EC",
+ "background_color": "#1F4A33",
  "theme_color": "#1F4A33",
  "lang": "es",
  "icons": [
   {
-   "src": "icon-192-v2.png",
+   "src": "icon-192-v3.png",
    "sizes": "192x192",
    "type": "image/png",
    "purpose": "any maskable"
   },
   {
-   "src": "icon-512-v2.png",
+   "src": "icon-512-v3.png",
    "sizes": "512x512",
    "type": "image/png",
    "purpose": "any maskable"

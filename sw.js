@@ -1,6 +1,6 @@
 // Mis Recetas: guarda la app en el móvil para que abra sin cobertura
-var V='mr-v4';
-var CORE=['./','index.html','manifest-v2.webmanifest','apple-touch-icon-v2.png','icon-192-v2.png','icon-512-v2.png','favicon-v2.svg','favicon-32-v2.png'];
+var V='mr-v5';
+var CORE=['./','index.html','manifest-v3.webmanifest','apple-touch-icon-v3.png','icon-192-v3.png','icon-512-v3.png','favicon-v3.svg','favicon-32-v3.png'];
 var LIBS=['https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js','https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js'];
 var EXT=/^https:\/\/(www\.gstatic\.com\/firebasejs\/|unpkg\.com\/html5-qrcode@|fonts\.googleapis\.com\/|fonts\.gstatic\.com\/)/;
 self.addEventListener('install',function(e){
