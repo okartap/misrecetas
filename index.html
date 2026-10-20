@@ -946,6 +946,22 @@ function entries(){
   if(S.useWeek){weekDays(ui.wk).forEach(function(d){var p=S.plan[dkey(d)];if(p)SLOTS.forEach(function(k){(p[k]||[]).forEach(function(e){out.push(e)})})})}
   return out;
 }
+function boughtW(){S.bought=S.bought||{};return S.bought[ckKey()]||{}}
+function shopNeed(){
+  var m=shopping(),b=boughtW(),o={};
+  Object.keys(m).forEach(function(id){var v=m[id]-(b[id]||0);if(v>1e-6)o[id]=v});
+  return o;
+}
+function shopFinish(){
+  var C=ck(),m=shopNeed(),k=ckKey();S.bought=S.bought||{};var b=S.bought[k]||(S.bought[k]={}),n=0;
+  Object.keys(m).forEach(function(id){if(C[id]&&!S.have[id]){b[id]=(b[id]||0)+m[id];n++}});
+  S.extra=S.extra.filter(function(e){if(C['x:'+e.id]){n++;return false}return true});
+  delete S.chk[k];
+  var left=shopNeed();
+  S.want=S.want.filter(function(w){var r=recipe(w.r);if(!r)return false;return r.ing.some(function(l){return l.f&&left[l.f]>0&&!S.have[l.f]})});
+  var ks=Object.keys(S.bought).filter(function(x){return x!=='all'}).sort();while(ks.length>12)delete S.bought[ks.shift()];
+  return n;
+}
 function shopping(){
   var m={};
   entries().forEach(function(e){
@@ -1017,7 +1033,7 @@ function vWeek(){
   return html+'</div><p class="note">Toca una comida para cambiar raciones o quitarla. «×2» son raciones. La pestaña Compra suma los ingredientes de esta semana.</p>';
 }
 function vPantry(){
-  var m=shopping(),ids=Object.keys(m).filter(function(id){return food(id)});
+  var m=shopNeed(),ids=Object.keys(m).filter(function(id){return food(id)});
   var have=ids.filter(function(id){return S.have[id]}).length;
   var html='<div class="hd"><h2>Despensa</h2><span class="rc-m">Marca lo que ya tienes en casa antes de ir a comprar. Lo marcado no saldrá en la lista de la compra.</span><span class="rc-m mono">'+have+' de '+ids.length+' ya en casa</span></div>'+
     '<div class="wk"><button class="btn ghost" data-a="wk" data-d="-1" aria-label="Semana anterior">‹</button><div class="lab">'+weekLabel(ui.wk)+'</div><button class="btn ghost" data-a="wk" data-d="1" aria-label="Semana siguiente">›</button></div>';
@@ -1033,7 +1049,7 @@ function vPantry(){
   return html+'<p class="note">Lo que marques se queda marcado hasta que pulses «Reiniciar revisión».</p>';
 }
 function vShop(){
-  var C=ck(),m=shopping(),allIds=Object.keys(m).filter(function(id){return food(id)}),ids=allIds.filter(function(id){return !S.have[id]}),hid=allIds.length-ids.length;
+  var C=ck(),m=shopNeed(),allIds=Object.keys(m).filter(function(id){return food(id)}),ids=allIds.filter(function(id){return !S.have[id]}),hid=allIds.length-ids.length;
   var pend=ids.filter(function(id){return !C[id]}),pendX=S.extra.filter(function(e){return !C['x:'+e.id]});
   var cart=ids.filter(function(id){return C[id]}).map(function(id){var f=food(id);return {n:f.n,q:qtxt(f,m[id]),a:'check',k:'data-id="'+id+'"'}})
     .concat(S.extra.map(function(e,ix){return C['x:'+e.id]?{n:e.t,q:'',a:'extra-check',k:'data-i="'+ix+'"'}:null}).filter(Boolean)).sort(function(a,b){return a.n.localeCompare(b.n,'es')});
@@ -1054,7 +1070,8 @@ function vShop(){
       html+='<div class="want"><span class="ent-n">'+(r?esc(r.n):'Receta borrada')+'</span><span class="step"><button data-a="want-step" data-i="'+ix+'" data-d="-1" aria-label="Menos">−</button><b>'+w.s+'</b><button data-a="want-step" data-i="'+ix+'" data-d="1" aria-label="Más">+</button></span><button class="x" data-a="want-del" data-i="'+ix+'" aria-label="Quitar">×</button></div>';
     });
     html+='<div class="center" style="margin-top:8px"><button class="btn ghost sm" data-a="slot-add" data-day="want">＋ Añadir receta</button></div>'+
-      (hid?'<p class="rc-m" style="margin:10px 0 0">'+hid+(hid==1?' producto no sale porque ya lo tienes en casa':' productos no salen porque ya los tienes en casa')+' (ver Despensa).</p>':'')+'</div>';
+      (hid?'<p class="rc-m" style="margin:10px 0 0">'+hid+(hid==1?' producto no sale porque ya lo tienes en casa':' productos no salen porque ya los tienes en casa')+' (ver Despensa).</p>':'')+
+      (Object.keys(boughtW()).length?'<p class="rc-m" style="margin:10px 0 0">Ya comprado '+(S.useWeek?'esta semana':'')+': '+Object.keys(boughtW()).length+' productos. <button class="lnk" data-a="shop-unbuy">'+(ui.confirm==='unbuy'?'Pulsa otra vez':'Volver a pedirlos')+'</button></p>':'')+'</div>';
   }
   html+='</div>';
   if(!total){
@@ -1077,7 +1094,9 @@ function vShop(){
     html+='<button class="sh-cart" data-a="shop-cart"><span>✓ En el carro · '+cart.length+'</span><span>'+(ui.shopCart?'▾ Ocultar':'▸ Mostrar')+'</span></button>';
     if(ui.shopCart)html+=cart.map(function(x){return '<button class="it done" data-a="'+x.a+'" '+x.k+'><span class="cb"></span><span class="n">'+esc(x.n)+'</span><span class="a">'+x.q+'</span></button>'}).join('');
   }
-  if(total)html+='<div class="center" style="margin-top:22px"><button class="btn ghost sm" data-a="copy">Copiar lo que falta</button>'+(cart.length?'<button class="btn ghost sm" data-a="uncheck">'+(ui.confirm==='shop'?'Pulsa otra vez':'Empezar compra nueva')+'</button>':'')+'</div>';
+  if(cart.length)html+='<div class="center" style="margin-top:20px"><button class="btn'+(left?' ghost':'')+'" data-a="shop-fin">'+(ui.confirm==='fin'?'Pulsa otra vez para cerrar la compra':'✓ Compra terminada')+'</button></div>'+
+    (ui.confirm==='fin'?'<p class="rc-m" style="margin:6px 0 0">Lo marcado se da por comprado y deja de salir esta semana. Lo que no hayas marcado sigue en la lista.</p>':'');
+  if(left)html+='<div class="center" style="margin-top:10px"><button class="btn ghost sm" data-a="copy">Copiar lo que falta</button></div>';
   return html;
 }
 
@@ -1467,7 +1486,7 @@ function closeSheet(){
 /* ---------- acciones ---------- */
 function planList(day,slot){var p=S.plan[day]||(S.plan[day]={});return p[slot]||(p[slot]=[])}
 function listText(){
-  var C=ck(),m=shopping(),out=[];
+  var C=ck(),m=shopNeed(),out=[];
   Object.keys(CATS).forEach(function(c){
     var ids=Object.keys(m).filter(function(id){return food(id)&&food(id).c===c&&!C[id]&&!S.have[id]});
     if(ids.length){out.push(CATS[c].toUpperCase());ids.forEach(function(id){out.push('- '+qtxt(food(id),m[id])+' '+food(id).n)})}
@@ -1480,7 +1499,7 @@ document.addEventListener('click',function(e){
   var b=e.target.closest('[data-a]');if(!b)return;
   var a=b.dataset.a,id=b.dataset.id,i=+b.dataset.i,d=+b.dataset.d;
   switch(a){
-    case 'tab':ui.tab=b.dataset.v;if(ui.confirm==='shop')ui.confirm=false;window.scrollTo(0,0);render();break;
+    case 'tab':ui.tab=b.dataset.v;if(ui.confirm==='fin'||ui.confirm==='unbuy'||ui.confirm==='shop')ui.confirm=false;window.scrollTo(0,0);render();break;
     case 'wk':ui.wk=d===0?0:ui.wk+d;render();if(ui.sheet&&ui.sheet.t==='batch')renderSheet();break;
     case 'new-recipe':ui.sheet={t:'recipe',isNew:true,newFids:[],origFid:'',draft:recFill({id:null,n:'',s:2,ing:[{f:'',q:''}]})};ui.confirm=false;renderSheet();break;
     case 'edit-recipe':{var er=recipe(id);ui.stash=null;ui.sheet={t:'recipe',isNew:false,newFids:[],origFid:er.fid||'',draft:JSON.parse(JSON.stringify(er))};ui.confirm=false;renderSheet();break}
@@ -1706,6 +1725,8 @@ document.addEventListener('click',function(e){
     case 'extra-add':addExtra();break;
     case 'uncheck':if(ui.confirm!=='shop'){ui.confirm='shop';render();break}ui.confirm=false;delete S.chk[ckKey()];ui.shopCart=false;save();render();toast('Lista desmarcada');break;
     case 'shop-src':ui.shopSrc=!ui.shopSrc;render();break;
+    case 'shop-fin':{if(ui.confirm!=='fin'){ui.confirm='fin';render();break}ui.confirm=false;var nf=shopFinish();ui.shopCart=false;save();render();window.scrollTo(0,0);toast('Compra cerrada · '+nf+(nf==1?' producto':' productos'));break}
+    case 'shop-unbuy':{if(ui.confirm!=='unbuy'){ui.confirm='unbuy';render();break}ui.confirm=false;if(S.bought)delete S.bought[ckKey()];save();render();toast('La lista vuelve a pedir todo');break}
     case 'shop-cart':ui.shopCart=!ui.shopCart;render();break;
     case 'copy':{
       var tx=listText();if(!tx){toast('No hay nada pendiente');break}
