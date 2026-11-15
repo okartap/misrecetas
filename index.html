@@ -163,6 +163,12 @@ input[type=search]{-webkit-appearance:none;appearance:none}
 .acc-b .want{flex-wrap:nowrap;justify-content:space-between;padding:6px 6px 6px 12px;margin-top:6px;gap:6px}.acc-b .want .ent-n{flex:1;min-width:0;text-align:left;font-size:15px;line-height:1.25}.acc-b h4{margin-top:12px}
 .sh-cat{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:16px 0 2px}
 .sh-x{display:flex;align-items:center;gap:6px}.sh-x .it{flex:1}
+#sh-sug{margin:-4px 0 8px;border-radius:12px;overflow:hidden}
+#sh-sug:empty{display:none}
+.sug{display:flex;width:100%;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-top:0;color:inherit;font:inherit;font-size:15px;text-align:left;cursor:pointer}
+.sug:first-child{border-top:1px solid var(--line);border-radius:12px 12px 0 0}.sug:last-child{border-radius:0 0 12px 12px}.sug:only-child{border-radius:12px}
+.sug small{font-size:12px;color:var(--muted);white-space:nowrap}.sug.on small{color:var(--brand)}.sug.new span{color:var(--brand)}
+.hab{display:flex;align-items:center;gap:6px}.hab .it{flex:1}
 .sh-cart{display:flex;width:100%;justify-content:space-between;margin-top:18px;padding:10px 0;background:none;border:0;border-top:1px solid var(--line);color:var(--muted);font:inherit;font-size:13px;letter-spacing:.04em;cursor:pointer}
 .ri{border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:6px}
 .ri-l{display:flex;flex-direction:column;gap:3px;margin:6px 0 0 34px}
@@ -413,7 +419,7 @@ function seed(){
       {id:'r5',n:'Salmón al horno con verduras',s:2,ej:1,ing:[{f:'salmon',q:300},{f:'calabacin',q:250},{f:'patata',q:300},{f:'aceite',q:20},{f:'limon',q:1}]},
       {id:'r6',n:'Avena con yogur y plátano',s:1,ej:1,ing:[{f:'avena',q:50},{f:'yogur',q:2},{f:'platano',q:1},{f:'miel',q:10}]}
     ].map(recFill),
-    plan:{},want:[],extra:[],checked:{},chk:{},have:{}};
+    plan:{},want:[],extra:[],checked:{},chk:{},have:{},hist:{}};
 }
 function norm(s){
   var d=seed();
@@ -437,6 +443,9 @@ function norm(s){
   var lim=new Date();lim.setFullYear(lim.getFullYear()-1);var limK=dkey(lim);
   Object.keys(s.plan).forEach(function(k){if(k<limK)delete s.plan[k]});
   s.extra.forEach(function(x,i){if(!x.id)x.id='e'+i+Date.now().toString(36)});
+  if(!s.hist||typeof s.hist!=='object'||Array.isArray(s.hist))s.hist={};
+  Object.keys(s.hist).forEach(function(k){var h=s.hist[k];if(!h||typeof h.t!=='string'||!h.t.trim())delete s.hist[k];else h.n=Math.max(0,+h.n||0)});
+  s.extra.forEach(function(x){var k=nz(x.t);if(k&&!s.hist[k])s.hist[k]={t:x.t,n:0}});
   if(!s.chk||typeof s.chk!=='object'){
     s.chk={};var o={},k0=s.cwk||dkey(weekDays(0)[0]);
     Object.keys(s.checked).forEach(function(id){if(s.checked[id])o[id]=true});
@@ -952,10 +961,10 @@ function shopNeed(){
   Object.keys(m).forEach(function(id){var v=m[id]-(b[id]||0);if(v>1e-6)o[id]=v});
   return o;
 }
-function shopFinish(){
+function shopFinish(){if(!S.hist)S.hist={};
   var C=ck(),m=shopNeed(),k=ckKey();S.bought=S.bought||{};var b=S.bought[k]||(S.bought[k]={}),n=0;
   Object.keys(m).forEach(function(id){if(C[id]&&!S.have[id]){b[id]=(b[id]||0)+m[id];n++}});
-  S.extra=S.extra.filter(function(e){if(C['x:'+e.id]){n++;return false}return true});
+  S.extra=S.extra.filter(function(e){if(C['x:'+e.id]){n++;var hk=nz(e.t);if(hk){S.hist[hk]=S.hist[hk]||{t:e.t,n:0};S.hist[hk].n++}return false}return true});
   delete S.chk[k];
   var left=shopNeed();
   S.want=S.want.filter(function(w){var r=recipe(w.r);if(!r)return false;return r.ing.some(function(l){return l.f&&left[l.f]>0&&!S.have[l.f]})});
@@ -1057,7 +1066,11 @@ function vShop(){
   var nw=S.want.length;
   var html='<div class="sh-h"><h2>Compra</h2><span class="sh-c">'+(total?'<b>'+(left?'Faltan '+left:'¡Todo comprado!')+'</b>'+(cart.length?' · '+cart.length+' ✓':''):'')+'</span></div>'+
     '<div class="bar"><i style="width:'+pct+'%"></i></div>'+
-    '<div class="sh-add"><input id="extra-new" class="inp" placeholder="Añadir algo a la lista…" autocomplete="off" enterkeyhint="done"><button class="btn" data-a="extra-add" aria-label="Añadir">+</button></div>';
+    '<div class="sh-add"><input id="extra-new" class="inp" placeholder="Añadir algo a la lista…" autocomplete="off" autocorrect="off" autocapitalize="sentences" enterkeyhint="done" value="'+esc(ui.xq||'')+'"><button class="btn" data-a="extra-add" aria-label="Añadir">+</button></div>'+
+    '<div id="sh-sug">'+sugHtml()+'</div>';
+  if(!S.hist)S.hist={};var nh=Object.keys(S.hist).length;
+  html+='<div class="acc'+(ui.shopHab?' open':'')+'"><button class="acc-h" data-a="shop-hab"><span><b>Mis habituales</b><small>'+(nh?nh+(nh==1?' producto':' productos')+' · toca para añadir a la lista':'Lo que añadas a mano se guarda aquí')+'</small></span><span class="acc-i">'+(ui.shopHab?'▾':'▸')+'</span></button>'+
+    (ui.shopHab?'<div class="acc-b">'+habHtml()+'</div>':'')+'</div>';
   // De dónde sale (plegable)
   var src=[];if(S.useWeek)src.push('Menú '+weekLabel(ui.wk));if(nw)src.push(nw+(nw==1?' receta':' recetas')+' en «Quiero comer»');
   html+='<div class="acc'+(ui.shopSrc?' open':'')+'"><button class="acc-h" data-a="shop-src"><span><b>De dónde sale</b><small>'+(src.length?src.join(' · '):'Ni menú ni recetas: solo lo que añadas a mano')+'</small></span><span class="acc-i">'+(ui.shopSrc?'▾':'▸')+'</span></button>';
@@ -1723,6 +1736,10 @@ document.addEventListener('click',function(e){
     case 'extra-check':ckTog('x:'+S.extra[i].id);save();render();break;
     case 'extra-del':S.extra.splice(i,1);save();render();break;
     case 'extra-add':addExtra();break;
+    case 'sug-add':{if(addProd(b.dataset.t)){toast('Añadido: '+b.dataset.t)}ui.xq='';save();render();break}
+    case 'shop-hab':ui.shopHab=!ui.shopHab;render();break;
+    case 'hab-tog':{var ht=b.dataset.t,hk2=nz(ht);if(inList(ht)){S.extra=S.extra.filter(function(e){return nz(e.t)!==hk2})}else addProd(ht);save();render();break}
+    case 'hab-del':delete S.hist[b.dataset.k];save();render();break;
     case 'uncheck':if(ui.confirm!=='shop'){ui.confirm='shop';render();break}ui.confirm=false;delete S.chk[ckKey()];ui.shopCart=false;save();render();toast('Lista desmarcada');break;
     case 'shop-src':ui.shopSrc=!ui.shopSrc;render();break;
     case 'shop-fin':{if(ui.confirm!=='fin'){ui.confirm='fin';render();break}ui.confirm=false;var nf=shopFinish();ui.shopCart=false;save();render();window.scrollTo(0,0);toast('Compra cerrada · '+nf+(nf==1?' producto':' productos'));break}
@@ -1736,9 +1753,39 @@ document.addEventListener('click',function(e){
     }
   }
 });
+function inList(t){if(!S.hist)S.hist={};var k=nz(t);return S.extra.some(function(e){return nz(e.t)===k})}
+function addProd(t){
+  t=String(t||'').trim().slice(0,60);if(!t)return false;var k=nz(t);
+  if(!S.hist[k])S.hist[k]={t:t,n:0};
+  if(inList(t)){toast('Ya está en la lista');return false}
+  S.extra.push({id:'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),t:t});return true;
+}
 function addExtra(){
   var el=$('#extra-new'),t=el?el.value.trim():'';if(!t)return;
-  S.extra.push({id:'e'+Date.now().toString(36),t:t});save();render();
+  addProd(t);ui.xq='';save();render();var ne=$('#extra-new');if(ne)ne.focus();
+}
+// Coincidencias: tus habituales y tus alimentos, sin repetir, en orden alfabético
+function sugList(q){if(!S.hist)S.hist={};
+  q=nz(q);if(!q)return [];var seen={},out=[];
+  Object.keys(S.hist).forEach(function(k){if(k.indexOf(q)>=0&&!seen[k]){seen[k]=1;out.push({t:S.hist[k].t,h:1})}});
+  S.foods.forEach(function(f){var k=nz(f.n);if(k.indexOf(q)>=0&&!seen[k]){seen[k]=1;out.push({t:f.n,h:0})}});
+  return out.sort(function(a,b){return a.t.localeCompare(b.t,'es',{sensitivity:'base'})}).slice(0,10);
+}
+function sugHtml(){
+  var q=(ui.xq||'').trim();if(!q)return '';
+  var l=sugList(q),exact=l.some(function(x){return nz(x.t)===nz(q)});
+  return l.map(function(x){var on=inList(x.t);
+      return '<button class="sug'+(on?' on':'')+'" data-a="sug-add" data-t="'+esc(x.t)+'"><span>'+esc(x.t)+'</span><small>'+(on?'✓ en la lista':(x.h?'Habitual':'Alimento'))+'</small></button>'}).join('')+
+    (exact?'':'<button class="sug new" data-a="extra-add"><span>Añadir «'+esc(q)+'»</span><small>Nuevo</small></button>');
+}
+function renderSug(){var b=document.getElementById('sh-sug');if(b)b.innerHTML=sugHtml()}
+function habHtml(){if(!S.hist)S.hist={};
+  var all=Object.keys(S.hist).map(function(k){return {k:k,t:S.hist[k].t,n:S.hist[k].n}});
+  if(!all.length)return '<p class="rc-m" style="margin:0">Aún no hay habituales. Todo lo que añadas a mano se guardará aquí para la próxima vez.</p>';
+  var abc=function(a,b){return a.t.localeCompare(b.t,'es',{sensitivity:'base'})};
+  var top=all.filter(function(x){return x.n>=2}).sort(function(a,b){return b.n-a.n}).slice(0,8).sort(abc);
+  var row=function(x){var on=inList(x.t);return '<div class="hab"><button class="it'+(on?' done':'')+' pick" data-a="hab-tog" data-t="'+esc(x.t)+'"><span class="cb"></span><span class="n">'+esc(x.t)+'</span></button><button class="x" data-a="hab-del" data-k="'+esc(x.k)+'" aria-label="Quitar de habituales">×</button></div>'};
+  return (top.length?'<h4>Los que más compras</h4>'+top.map(row).join(''):'')+'<h4>Todos</h4>'+all.sort(abc).map(row).join('');
 }
 document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.id==='aj-key'){e.preventDefault();e.target.blur();lsSet('rc-gkey',e.target.value.replace(/[^\x21-\x7E]/g,''));toast('Clave guardada');return}
   if(e.key==='Enter'&&(e.target.id==='lg-mail'||e.target.id==='lg-pass')){e.preventDefault();doLogin();return}
@@ -1749,6 +1796,7 @@ document.addEventListener('focusin',function(e){
 });
 document.addEventListener('input',function(e){
   var t=e.target,sh=ui.sheet;
+  if(t.id==='extra-new'){ui.xq=t.value;renderSug();return}
   if(t.id==='q'){ui.q=t.value;render()}
   else if(t.id==='pk-q'){ui.pq=t.value;renderSheet()}
   else if(t.id==='pk-fq'&&sh&&sh.t==='pick'){sh.fq=t.value;var pf3=food(sh.food),v3=num(t.value),ke=document.getElementById('pk-k'),me=document.getElementById('pk-m');if(pf3){if(ke)ke.textContent=nf0.format(lineK({f:pf3.id,q:v3}));if(me)me.textContent=mtxt(lineM({f:pf3.id,q:v3}))}}
