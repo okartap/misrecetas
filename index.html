@@ -118,7 +118,7 @@ input[type=search]{-webkit-appearance:none;appearance:none}
 .it{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 2px;text-align:left;min-height:46px}
 .cb{width:22px;height:22px;border:2px solid var(--muted);border-radius:6px;flex:none;display:grid;place-items:center}
 .it.done .cb{background:var(--brand);border-color:var(--brand)}
-.it.done .cb::after{content:"";width:6px;height:11px;border:solid var(--brand-ink);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.it.done .cb::after,.shop .it.going .cb::after{content:"";width:6px;height:11px;border:solid var(--brand-ink);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
 .it .n{flex:1;min-width:0}
 .it .a{font:500 14px var(--f-mono);color:var(--muted);white-space:nowrap}
 .it.done .n,.it.done .a{text-decoration:line-through;color:var(--muted)}
@@ -170,6 +170,10 @@ input[type=search]{-webkit-appearance:none;appearance:none}
 .sug small{font-size:12px;color:var(--muted);white-space:nowrap}.sug.on small{color:var(--brand)}.sug.new span{color:var(--brand)}
 .hab{display:flex;align-items:center;gap:6px}.hab .it{flex:1}
 .shop .it{min-height:40px;padding:7px 2px}
+.shop .it.going .cb{background:var(--brand);border-color:var(--brand)}
+.shop .it.going .n{text-decoration:line-through}
+.shop .it.going{animation:goFade 1s ease-in forwards}
+@keyframes goFade{0%{opacity:1}25%{opacity:1}100%{opacity:0}}
 .sh-add .inp{min-height:44px;padding-top:8px;padding-bottom:8px}.sh-add .btn{min-height:44px}
 .sh-star{min-width:44px!important;font-size:18px!important;color:var(--brand)}.sh-star[aria-pressed=true]{background:var(--surface2);border-color:var(--brand)}
 .hab-h{display:flex;align-items:center;gap:10px;padding:8px 8px 0 12px}.hab-h .rc-m{flex:1;margin:0}
@@ -478,6 +482,14 @@ function norm(s){
   }
   s.checked={};delete s.cwk;s.extra.forEach(function(x){delete x.d});
   return s;
+}
+// Marcar como comprado: se marca y se desvanece en 1 segundo; tocar otra vez lo anula
+var going={};
+function shopMark(b,key){
+  if(b.classList.contains('done')&&!going[key]){ckTog(key);save();render();return}
+  if(going[key]){clearTimeout(going[key]);delete going[key];b.classList.remove('going');return}
+  b.classList.add('going');
+  going[key]=setTimeout(function(){delete going[key];ckTog(key);save();render()},1000);
 }
 function ckKey(){return S.useWeek?dkey(weekDays(ui.wk)[0]):'all'}
 function ck(){return S.chk[ckKey()]||{}}
@@ -1143,8 +1155,8 @@ function vShop(){
     }).join('');
   }
   if(cart.length){
-    html+='<button class="sh-cart" data-a="shop-cart"><span>✓ En el carro · '+cart.length+'</span><span>'+(ui.shopCart?'▾ Ocultar':'▸ Mostrar')+'</span></button>';
-    if(ui.shopCart)html+=cart.map(function(x){return '<button class="it done" data-a="'+x.a+'" '+x.k+'><span class="cb"></span><span class="n">'+esc(x.n)+'</span><span class="a">'+x.q+'</span></button>'}).join('');
+    html+='<button class="sh-cart" data-a="shop-cart"><span>✓ En el carro · '+cart.length+'</span><span>'+(ui.shopCart!==false?'▾ Ocultar':'▸ Mostrar')+'</span></button>';
+    if(ui.shopCart!==false)html+=cart.map(function(x){return '<button class="it done" data-a="'+x.a+'" '+x.k+'><span class="cb"></span><span class="n">'+esc(x.n)+'</span><span class="a">'+x.q+'</span></button>'}).join('');
   }
   if(cart.length)html+='<div class="center" style="margin-top:20px"><button class="btn'+(left?' ghost':'')+'" data-a="shop-fin">'+(ui.confirm==='fin'?'Pulsa otra vez para cerrar la compra':'✓ Compra terminada')+'</button></div>'+
     (ui.confirm==='fin'?'<p class="rc-m" style="margin:6px 0 0">Lo marcado se da por comprado y deja de salir esta semana. Lo que no hayas marcado sigue en la lista.</p>':'');
@@ -1855,19 +1867,19 @@ document.addEventListener('click',function(e){
     case 'plan-del':planList(b.dataset.day,b.dataset.slot).splice(i,1);ui.went=null;save();render();break;
     case 'went':ui.went=ui.went===b.dataset.k?null:b.dataset.k;render();break;
     case 'toggle-week':S.useWeek=!S.useWeek;save();render();break;
-    case 'check':ckTog(id);save();render();break;
-    case 'extra-check':ckTog('x:'+S.extra[i].id);save();render();break;
+    case 'check':shopMark(b,id);break;
+    case 'extra-check':shopMark(b,'x:'+S.extra[i].id);break;
     case 'extra-del':S.extra.splice(i,1);save();render();break;
     case 'extra-add':addExtra();break;
     case 'sug-add':{if(addProd(b.dataset.t)){toast('Añadido: '+b.dataset.t)}ui.xq='';save();render();break}
     case 'shop-hab':ui.shopHab=!ui.shopHab;render();if(ui.shopHab){var hb=document.querySelector('.hab-h');if(hb)hb.scrollIntoView({block:'nearest'})}break;
     case 'hab-tog':{var ht=b.dataset.t,hk2=nz(ht);if(inList(ht)){S.extra=S.extra.filter(function(e){return nz(e.t)!==hk2})}else addProd(ht);save();render();break}
     case 'hab-del':delete S.hist[b.dataset.k];save();render();break;
-    case 'uncheck':if(ui.confirm!=='shop'){ui.confirm='shop';render();break}ui.confirm=false;delete S.chk[ckKey()];ui.shopCart=false;save();render();toast('Lista desmarcada');break;
+    case 'uncheck':if(ui.confirm!=='shop'){ui.confirm='shop';render();break}ui.confirm=false;delete S.chk[ckKey()];save();render();toast('Lista desmarcada');break;
     case 'shop-src':ui.shopSrc=!ui.shopSrc;render();break;
-    case 'shop-fin':{if(ui.confirm!=='fin'){ui.confirm='fin';render();break}ui.confirm=false;var nf=shopFinish();ui.shopCart=false;save();render();window.scrollTo(0,0);toast('Compra cerrada · '+nf+(nf==1?' producto':' productos'));ui.sheet={t:'gasto',fromShop:true,g:{t:'c',k:'',a:0,d:dkey(new Date())}};renderSheet();setTimeout(function(){var ga=document.getElementById('g-a');if(ga)ga.focus()},80);break}
+    case 'shop-fin':{if(ui.confirm!=='fin'){ui.confirm='fin';render();break}ui.confirm=false;var nf=shopFinish();save();render();window.scrollTo(0,0);toast('Compra cerrada · '+nf+(nf==1?' producto':' productos'));ui.sheet={t:'gasto',fromShop:true,g:{t:'c',k:'',a:0,d:dkey(new Date())}};renderSheet();setTimeout(function(){var ga=document.getElementById('g-a');if(ga)ga.focus()},80);break}
     case 'shop-unbuy':{if(ui.confirm!=='unbuy'){ui.confirm='unbuy';render();break}ui.confirm=false;if(S.bought)delete S.bought[ckKey()];save();render();toast('La lista vuelve a pedir todo');break}
-    case 'shop-cart':ui.shopCart=!ui.shopCart;render();break;
+    case 'shop-cart':ui.shopCart=ui.shopCart===false;render();break;
     case 'copy':{
       var tx=listText();if(!tx){toast('No hay nada pendiente');break}
       if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(tx).then(function(){toast('Lista copiada')},function(){toast('No se pudo copiar')})}
