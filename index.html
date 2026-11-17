@@ -1284,7 +1284,8 @@ function foodEdit(f){
 function fdv(k){var v=ui.fdraft[k];return v===undefined||v===null?'':v}
 function sFoods(){
   var html='<div class="ph"><h3>Alimentos</h3><button class="x" data-a="close-sheet" aria-label="Cerrar">×</button></div>'+
-    '<p class="rc-m" style="margin:0 0 4px">Todos los valores son por 100 g (o 100 ml). Puedes corregir cualquiera.</p>'+
+    '<input id="fs-q" class="inp" type="search" placeholder="Buscar en tus '+S.foods.length+' alimentos" autocomplete="off" value="'+esc(ui.fsq||'')+'" style="margin:8px 0 6px">'+
+    '<!--fs-->'+(ui.fsq?'':'<p class="rc-m" style="margin:0 0 4px">Todos los valores son por 100 g (o 100 ml). Puedes corregir cualquiera.</p>')+
     ((S.foods.some(function(f){return f.ej})||S.recipes.some(function(r){return r.ej}))?'<div class="center" style="margin-top:10px"><button class="btn danger sm" data-a="clear-ej">'+(ui.confirm?'Pulsa otra vez para borrar los ejemplos':'Borrar alimentos y recetas de ejemplo')+'</button></div>':'')+
     '<div class="center" style="margin-top:10px"><button class="btn ghost sm" data-a="fimp">Importar lista de alimentos</button></div>'+
     '<h4>Nuevo alimento</h4>'+
@@ -1301,15 +1302,18 @@ function sFoods(){
     '<label class="fl full">Categoría (para la compra)'+catSel('fn-c',ui.fdraft.c)+'</label>'+
     '<div class="fl full">Para qué comida suele ser'+ftChips(ui.fdraft.tipos,'n')+'</div>'+
     '<button class="btn full" data-a="food-add">Añadir alimento</button></div>';
+  var fq2=nz(ui.fsq||''),hits=0;
+  if(fq2)html=html.slice(0,html.indexOf('<!--fs-->'));
   Object.keys(CATS).forEach(function(c){
-    var fs=S.foods.filter(function(f){return f.c===c}).sort(function(a,b){return a.n.localeCompare(b.n,'es')});
-    if(!fs.length)return;
+    var fs=S.foods.filter(function(f){return f.c===c&&(!fq2||nz(f.n).indexOf(fq2)>=0)}).sort(function(a,b){return a.n.localeCompare(b.n,'es')});
+    if(!fs.length)return;hits+=fs.length;
     html+='<h4>'+CATS[c]+'</h4>'+fs.map(function(f){
       if(ui.fedit===f.id)return '<div class="fr">'+foodEdit(f)+'</div>';
       return '<div class="fr"><div class="frh"><button class="ed" data-a="food-edit" data-id="'+esc(f.id)+'">Editar</button><span class="fn">'+esc(f.n)+'<small>'+(f.t==='ud'?'1 ud ≈ '+f.u+' g · valores por 100 g':'valores por 100 '+f.t)+'</small></span><button class="x" data-a="food-del" data-id="'+esc(f.id)+'" aria-label="Borrar alimento">×</button></div>'+
         '<div class="mfs">'+mi(f,'k','kcal')+mi(f,'p','Prot.')+mi(f,'h','Hidr.')+mi(f,'g','Grasas')+'</div></div>';
     }).join('');
   });
+  if(fq2&&!hits)html+='<p class="empty">No tienes ningún alimento con «'+esc(ui.fsq)+'». Borra la búsqueda para añadirlo.</p>';
   return html;
 }
 function nz(s){return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
@@ -1601,7 +1605,7 @@ var tt;
 function toast(m){var e=$('#toast');e.textContent=m;e.hidden=false;clearTimeout(tt);tt=setTimeout(function(){e.hidden=true},2200)}
 function closeSheet(){
   if(ui.sheet&&ui.sheet.t==='scan')stopScan();
-  if(ui.sheet&&ui.sheet.t==='foods'){ui.fdraft={};ui.fmsg='';ui.fnote='';ui.fbusy='';ui.fedit=null}
+  if(ui.sheet&&ui.sheet.t==='foods'){ui.fdraft={};ui.fmsg='';ui.fnote='';ui.fbusy='';ui.fedit=null;ui.fsq=''}
   if(ui.sheet&&ui.sheet.t==='cook')stopCook();
   if(ui.sheet&&ui.sheet.t==='import'&&ui.sheet.ctl)try{ui.sheet.ctl.abort()}catch(e){}
   if(ui.sheet&&ui.sheet.t==='recipe'&&ui.sheet.newFids)dropFids(ui.sheet.newFids);
@@ -1933,6 +1937,7 @@ document.addEventListener('focusin',function(e){
 document.addEventListener('input',function(e){
   var t=e.target,sh=ui.sheet;
   if(t.id==='extra-new'){ui.xq=t.value;renderSug();return}
+  if(t.id==='fs-q'&&sh&&sh.t==='foods'){ui.fsq=t.value;renderSheet();return}
   if(t.id==='g-a'&&sh&&sh.t==='gasto'){sh.g.a=num(t.value);return}
   if(t.id==='q'){ui.q=t.value;render()}
   else if(t.id==='pk-q'){ui.pq=t.value;renderSheet()}
