@@ -169,6 +169,13 @@ input[type=search]{-webkit-appearance:none;appearance:none}
 .sug:first-child{border-top:1px solid var(--line);border-radius:12px 12px 0 0}.sug:last-child{border-radius:0 0 12px 12px}.sug:only-child{border-radius:12px}
 .sug small{font-size:12px;color:var(--muted);white-space:nowrap}.sug.on small{color:var(--brand)}.sug.new span{color:var(--brand)}
 .hab{display:flex;align-items:center;gap:6px}.hab .it{flex:1}
+.sh-est{text-align:center;font-size:13px;color:var(--muted);margin:-4px 0 8px}.sh-est b{color:var(--accent);font-family:var(--f-mono)}
+.warn{color:var(--accent)}
+.it .a small.pz{display:block;font-size:11px;color:var(--muted);text-align:right}
+.pbtn{flex:none;width:34px;height:34px;border-radius:10px;border:1px dashed var(--accent);background:none;color:var(--accent);font:inherit;font-weight:700;cursor:pointer}
+.pbtn.has{border:1px solid var(--line);color:var(--muted)}
+.step.xs button{width:26px;height:26px;font-size:15px}.step.xs b{min-width:18px;font-size:14px}
+.cost{text-align:center;font-size:14px;color:var(--muted);margin-top:6px}.cost b{color:var(--ink)}
 .shop .it{min-height:40px;padding:7px 2px}
 .shop .it.going .cb{background:var(--brand);border-color:var(--brand)}
 .shop .it.going .n{text-decoration:line-through}
@@ -461,7 +468,7 @@ function norm(s){
   if(!Array.isArray(s.foods))s.foods=d.foods;if(!Array.isArray(s.recipes))s.recipes=d.recipes;
   if(!Array.isArray(s.want))s.want=[];if(!Array.isArray(s.extra))s.extra=[];
   if(!s.plan||typeof s.plan!=='object')s.plan={};if(!s.have||typeof s.have!=='object')s.have={};if(!s.checked||typeof s.checked!=='object')s.checked={};
-  s.foods=s.foods.filter(function(f){return f&&f.id}).map(function(f){f.n=String(f.n||'Sin nombre');f.k=+f.k||0;f.t=['g','ml','ud'].indexOf(f.t)>=0?f.t:'g';f.u=+f.u||0;f.c=CATS[f.c]?f.c:'o';if(!Array.isArray(f.tipos))delete f.tipos;return f});
+  s.foods=s.foods.filter(function(f){return f&&f.id}).map(function(f){f.n=String(f.n||'Sin nombre');f.k=+f.k||0;f.t=['g','ml','ud'].indexOf(f.t)>=0?f.t:'g';f.u=+f.u||0;f.c=CATS[f.c]?f.c:'o';if(!Array.isArray(f.tipos))delete f.tipos;f.pr=prNorm(f.pr);if(!f.pr)delete f.pr;return f});
   s.recipes=s.recipes.filter(function(r){return r&&r.id}).map(function(r){r.n=String(r.n||'Sin nombre');r.s=Math.max(1,+r.s||1);r.ing=Array.isArray(r.ing)?r.ing.filter(function(l){return l&&l.f}):[];return r});
   s.want=s.want.filter(function(w){return w&&w.r});
   s.recipes.forEach(recFill);
@@ -470,9 +477,10 @@ function norm(s){
   Object.keys(s.plan).forEach(function(k){if(k<limK)delete s.plan[k]});
   s.extra.forEach(function(x,i){if(!x.id)x.id='e'+i+Date.now().toString(36)});
   if(!Array.isArray(s.gastos))s.gastos=[];
-  s.gastos=s.gastos.filter(function(g){return g&&/^\d{4}-\d{2}-\d{2}$/.test(g.d)&&GT[g.t]&&+g.a>0}).map(function(g){return {id:String(g.id||('g'+Math.random().toString(36).slice(2))),d:g.d,t:g.t,k:g.t==='f'&&GK[g.k]?g.k:'',a:Math.round(+g.a*100)/100}});
+  s.gastos=s.gastos.filter(function(g){return g&&/^\d{4}-\d{2}-\d{2}$/.test(g.d)&&GT[g.t]&&+g.a>0}).map(function(g){var o={id:String(g.id||('g'+Math.random().toString(36).slice(2))),d:g.d,t:g.t,k:g.t==='f'&&GK[g.k]?g.k:'',a:Math.round(+g.a*100)/100};if(+g.e>0)o.e=+g.e;return o});
   if(!s.hist||typeof s.hist!=='object'||Array.isArray(s.hist))s.hist={};
-  Object.keys(s.hist).forEach(function(k){var h=s.hist[k];if(!h||typeof h.t!=='string'||!h.t.trim())delete s.hist[k];else h.n=Math.max(0,+h.n||0)});
+  Object.keys(s.hist).forEach(function(k){var h=s.hist[k];if(!h||typeof h.t!=='string'||!h.t.trim())delete s.hist[k];else{h.n=Math.max(0,+h.n||0);if(!(+h.p>0))delete h.p;else h.p=+h.p}});
+  s.extra.forEach(function(x){x.q=Math.max(1,Math.round(+x.q||1))});
   s.extra.forEach(function(x){var k=nz(x.t);if(k&&!s.hist[k])s.hist[k]={t:x.t,n:0}});
   if(!s.chk||typeof s.chk!=='object'){
     s.chk={};var o={},k0=s.cwk||dkey(weekDays(0)[0]);
@@ -535,6 +543,61 @@ function mtxt(m){return 'P '+nf0.format(m[0])+' · H '+nf0.format(m[1])+' · G '
 function noMacros(r){return r.ing.some(function(l){var f=food(l.f);return f&&f.p===undefined})}
 function entK(e){if(e.f)return lineK({f:e.f,q:e.q});var r=recipe(e.r);return r?perServ(r)*e.s:0}
 function unitOf(f){return f?f.t:'g'}
+/* ---------- precios ---------- */
+// pr: {m:'e' envase | 'u' unidad | 'k' granel (€/kg o €/l), v: precio, s: tamaño del envase (en la unidad del alimento)}
+function prNorm(p){if(!p||typeof p!=='object'||['e','u','k'].indexOf(p.m)<0||!(+p.v>0))return null;var o={m:p.m,v:Math.round(+p.v*100)/100};if(p.m==='e'&&+p.s>0)o.s=+p.s;return o}
+function prTxt(f){var p=f&&f.pr;if(!p)return '';
+  if(p.m==='k')return eur(p.v)+(f.t==='ml'?'/l':'/kg');
+  if(p.m==='u')return eur(p.v)+' la unidad';
+  return eur(p.v)+' el envase'+(p.s?' de '+(f.t==='ud'?nf0.format(p.s)+' ud':(p.s>=1000?nf1.format(p.s/1000)+(f.t==='ml'?' l':' kg'):nf0.format(p.s)+' '+f.t)):'');
+}
+// Lo que pagas en caja por lo que pide la lista
+function buyCost(f,q){var p=f&&f.pr;if(!p)return null;
+  if(p.m==='k')return p.v;
+  if(p.m==='u')return f.t==='ud'?Math.max(1,Math.ceil(q-1e-9))*p.v:p.v;
+  return (p.s?Math.max(1,Math.ceil(q/p.s-1e-9)):1)*p.v;
+}
+function buyN(f,q){var p=f&&f.pr;if(!p)return '';
+  if(p.m==='e'&&p.s){var n=Math.max(1,Math.ceil(q/p.s-1e-9));return n>1?n+' envases':'1 envase'}
+  if(p.m==='e')return '1 envase';if(p.m==='k')return f.t==='ml'?'1 l':'1 kg';return '';
+}
+// Lo que cuesta lo que usa una receta (proporcional)
+function useCost(f,q){var p=f&&f.pr;if(!p||!(q>0))return null;
+  if(p.m==='e')return p.s?q/p.s*p.v:null;
+  if(p.m==='u')return f.t==='ud'?q*p.v:null;
+  var base=f.t==='ud'?q*(f.u||0):q;return base>0?base/1000*p.v:null;
+}
+function recCost(r){var c=0,miss=0;r.ing.forEach(function(l){var f=food(l.f);if(!f)return;var v=useCost(f,l.q);if(v===null)miss++;else c+=v});return {c:c,miss:miss}}
+function xPrice(e){var h=S.hist&&S.hist[nz(e.t)];return h&&h.p>0?h.p*(e.q||1):null}
+function shopMoney(){
+  var C=ck(),m=shopNeed(),o={est:0,cart:0,miss:0,cmiss:0};
+  Object.keys(m).forEach(function(id){var f=food(id);if(!f||S.have[id])return;var v=buyCost(f,m[id]);if(v===null){o.miss++;if(C[id])o.cmiss++}else{o.est+=v;if(C[id])o.cart+=v}});
+  S.extra.forEach(function(e){var v=xPrice(e),inC=C['x:'+e.id];if(v===null){o.miss++;if(inC)o.cmiss++}else{o.est+=v;if(inC)o.cart+=v}});
+  return o;
+}
+function sPrice(){
+  var sh=ui.sheet,P=sh.p,h='<div class="ph"><h3>Precio</h3><button class="x" data-a="close-sheet" aria-label="Cerrar">×</button></div><p class="rc-m" style="margin:2px 0 8px;font-weight:600">'+esc(sh.name)+'</p>';
+  if(sh.x){
+    return h+'<label class="fl">Precio de 1 unidad o paquete<span class="qrow" style="margin:0 auto;max-width:220px"><input id="pr-v" class="inp q" type="text" inputmode="decimal" placeholder="0,00" value="'+esc(P.v?String(P.v).replace('.',','):'')+'"><span class="u">€</span></span></label>'+
+      '<div class="center" style="margin-top:16px"><button class="btn" data-a="pr-save">Guardar</button>'+(sh.had?'<button class="btn ghost" data-a="pr-del">Quitar precio</button>':'')+'</div>';
+  }
+  var f=food(sh.id),un=f.t==='ml'?'l':'kg',su=f.t==='ud'?'ud':f.t;
+  h+='<div class="chips" style="justify-content:center">'+[['e','Por envase'],['u','Por unidad'],['k','A granel']].map(function(x){return '<button class="chip" data-a="pr-m" data-v="'+x[0]+'" aria-pressed="'+(P.m===x[0])+'">'+x[1]+'</button>'}).join('')+'</div>';
+  var inp=function(id,lab,val,u,ph){return '<label class="fl">'+lab+'<span class="qrow" style="margin:0 auto;max-width:220px"><input id="'+id+'" class="inp q" type="text" inputmode="decimal" placeholder="'+(ph||'0,00')+'" value="'+esc(val?String(val).replace('.',','):'')+'"><span class="u">'+u+'</span></span></label>'};
+  if(P.m==='e')h+='<div class="fgrid" style="margin-top:10px">'+inp('pr-v','Precio del envase',P.v,'€')+inp('pr-s','Tamaño del envase',P.s,su,f.t==='ud'?'Ej. 12':'Ej. 500')+'</div><p class="rc-m" style="margin:6px 0 0">Bote, tarrina, botella, paquete… En la compra se cuentan envases completos.</p>';
+  else if(P.m==='u')h+='<div style="margin-top:10px">'+inp('pr-v','Precio de 1 unidad',P.v,'€')+'</div>';
+  else h+='<div style="margin-top:10px">'+inp('pr-v','Precio por '+un,P.v,'€/'+un)+'</div><p class="rc-m" style="margin:10px 0 4px">O apunta lo que has pagado y la app calcula el precio por '+un+':</p><div class="fgrid">'+inp('pr-w','Peso',P.w,un,'Ej. 1,35')+inp('pr-t','Has pagado',P.t,'€')+'</div><p class="rc-m" style="margin:6px 0 0">En la compra cuenta como 1 '+un+'.</p>';
+  return h+'<p class="rc-m" id="pr-prev" style="margin:12px 0 0;color:var(--brand)">'+prPrev()+'</p><div class="center" style="margin-top:14px"><button class="btn" data-a="pr-save">Guardar</button>'+(sh.had?'<button class="btn ghost" data-a="pr-del">Quitar precio</button>':'')+'</div>';
+}
+function prRead(){var P=ui.sheet.p,g=function(i){var e=document.getElementById(i);return e?num(e.value):0};
+  if(document.getElementById('pr-v'))P.v=g('pr-v');if(document.getElementById('pr-s'))P.s=g('pr-s');if(document.getElementById('pr-w'))P.w=g('pr-w');if(document.getElementById('pr-t'))P.t=g('pr-t')}
+function prPrev(){var sh=ui.sheet;if(sh.x)return '';var f=food(sh.id),P=sh.p,pr=prNorm({m:P.m,v:P.v,s:P.s});return pr?'Quedará: '+prTxt({t:f.t,pr:pr}):''}
+function openPrice(id,isX){
+  ui.stash=ui.sheet;
+  if(isX){var hk=nz(id),hh=S.hist[hk]||(S.hist[hk]={t:id,n:0});ui.sheet={t:'price',x:true,key:hk,name:hh.t,had:!!hh.p,p:{v:hh.p||0}}}
+  else{var f=food(id);if(!f)return;var p0=f.pr||{};ui.sheet={t:'price',id:id,name:f.n,had:!!f.pr,p:{m:p0.m||(f.c==='v'?'k':f.t==='ud'?'u':'e'),v:p0.v||0,s:p0.s||0}}}
+  renderSheet();setTimeout(function(){var e=document.getElementById('pr-v');if(e)e.focus()},80);
+}
 function qtxt(f,q){
   if(f.t==='ud')return Math.ceil(q-1e-9)+' ud';
   if(q>=1000)return nf1.format(q/1000)+(f.t==='ml'?' l':' kg');
@@ -1117,6 +1180,7 @@ function vShop(){
   var nw=S.want.length;
   var html='<div class="sh-h"><h2>Compra</h2><span class="sh-c">'+(total?'<b>'+(left?'Faltan '+left:'¡Todo comprado!')+'</b>'+(cart.length?' · '+cart.length+' ✓':''):'')+'</span></div>'+
     '<div class="bar"><i style="width:'+pct+'%"></i></div>'+
+    (function(){if(!total)return '';var mo=shopMoney();if(!(mo.est>0)&&!mo.miss)return '';return '<div class="sh-est">'+(mo.est>0?'Estimado <b>'+eur(mo.est)+'</b>':'Sin estimado')+(mo.cart>0?' · En el carro <b>'+eur(mo.cart)+'</b>':'')+(mo.miss?' · <span class="warn">'+mo.miss+' sin precio</span>':'')+'</div>'})()+
     '<div class="sh-add"><input id="extra-new" class="inp" placeholder="Añadir algo a la lista…" autocomplete="off" autocorrect="off" autocapitalize="sentences" enterkeyhint="done" value="'+esc(ui.xq||'')+'"><button class="btn ghost sh-star" data-a="shop-hab" aria-pressed="'+(ui.shopHab?'true':'false')+'" aria-label="Mis habituales">★</button><button class="btn" data-a="extra-add" aria-label="Añadir">+</button></div>'+
     '<div id="sh-sug">'+sugHtml()+'</div>';
   if(!S.hist)S.hist={};var nh=Object.keys(S.hist).length;
@@ -1145,13 +1209,18 @@ function vShop(){
     var cs=pend.filter(function(id){return food(id).c===c}).sort(function(a,b){return food(a).n.localeCompare(food(b).n,'es')});
     if(!cs.length)return;
     html+='<div class="sh-cat">'+CATS[c]+'</div>'+cs.map(function(id){var f=food(id);
-      return '<button class="it" data-a="check" data-id="'+id+'"><span class="cb"></span><span class="n">'+esc(f.n)+'</span><span class="a">'+qtxt(f,m[id])+'</span></button>';
+      var bc=buyCost(f,m[id]);
+      return '<div class="sh-x"><button class="it" data-a="check" data-id="'+id+'"><span class="cb"></span><span class="n">'+esc(f.n)+'</span><span class="a">'+qtxt(f,m[id])+(bc!==null?'<small class="pz">'+(buyN(f,m[id])?buyN(f,m[id])+' · ':'')+eur(bc)+'</small>':'')+'</span></button>'+(bc===null?'<button class="pbtn" data-a="price-open" data-id="'+esc(id)+'" aria-label="Poner precio">€</button>':'')+'</div>';
     }).join('');
   });
   if(pendX.length){
     html+='<div class="sh-cat">Añadido a mano</div>'+S.extra.map(function(e,ix){
       if(C['x:'+e.id])return '';
-      return '<div class="sh-x"><button class="it" data-a="extra-check" data-i="'+ix+'"><span class="cb"></span><span class="n">'+esc(e.t)+'</span></button><button class="x" data-a="extra-del" data-i="'+ix+'" aria-label="Quitar">×</button></div>';
+      var xp=xPrice(e);
+      return '<div class="sh-x"><button class="it" data-a="extra-check" data-i="'+ix+'"><span class="cb"></span><span class="n">'+esc(e.t)+'</span>'+(xp!==null?'<span class="a"><small class="pz">'+eur(xp)+'</small></span>':'')+'</button>'+
+        (xp===null?'<button class="pbtn" data-a="price-x" data-t="'+esc(e.t)+'" aria-label="Poner precio">€</button>':'')+
+        '<span class="step xs"><button data-a="extra-q" data-i="'+ix+'" data-d="-1" aria-label="Menos">−</button><b>'+(e.q||1)+'</b><button data-a="extra-q" data-i="'+ix+'" data-d="1" aria-label="Más">+</button></span>'+
+        '<button class="x" data-a="extra-del" data-i="'+ix+'" aria-label="Quitar">×</button></div>';
     }).join('');
   }
   if(cart.length){
@@ -1224,7 +1293,8 @@ function sFicha(){
   h+='<div class="center" style="margin:12px 0"><button class="btn" data-a="cook" data-id="'+r.id+'">Cocinar</button></div>'+
     '<div class="center"><span class="rc-m">Para</span><span class="step"><button data-a="fs" data-d="-1" aria-label="Menos">−</button><b>'+s+'</b><button data-a="fs" data-d="1" aria-label="Más">+</button></span><span class="rc-m">'+(s==1?'ración':'raciones')+'</span></div>'+
     '<div class="kbox"><div><b class="mono">'+nf0.format(perServ(r))+'</b><small>kcal por ración</small></div><div><b class="mono">'+nf0.format(perServ(r)*s)+'</b><small>kcal en total</small></div></div>'+
-    '<div class="mac mono" style="margin-top:8px">Por ración: '+mtxt(perServM(r))+'</div>';
+    '<div class="mac mono" style="margin-top:8px">Por ración: '+mtxt(perServM(r))+'</div>'+
+    (function(){var rc=recCost(r);if(!(rc.c>0))return '';var ps=rc.c/Math.max(1,r.s||1);return '<div class="cost">Coste: <b>'+eur(ps)+'</b> por ración · '+eur(ps*s)+' en total'+(rc.miss?' <span class="warn">('+rc.miss+(rc.miss==1?' ingrediente sin precio':' ingredientes sin precio')+')</span>':'')+'</div>'})();
   if(r.mets.length)h+='<h4>Cómo se cocina</h4><div class="mets">'+r.mets.map(function(m){return '<div class="met">'+esc(metTxt(m))+'</div>'}).join('')+'</div>';
   h+='<h4>Ingredientes</h4>'+r.ing.map(function(l){var f=food(l.f);return '<div class="ir"><b class="mono">'+fq(f,l.q*sc)+'</b>'+esc(f?f.n:'?')+'</div>'}).join('');
   h+='<h4>Pasos</h4>';
@@ -1279,6 +1349,7 @@ function foodEdit(f){
     '<div class="fl full">Para qué comida suele ser'+ftChips(ui.fetipos,'e')+'</div></div>'+
     (used?'<p class="rc-m" style="margin:0">Se usa en «'+esc(used.n)+'». Si cambias cómo se compra, revisa las cantidades de tus recetas.</p>':'')+
     (f.code?'<p class="rc-m" style="margin:0">Código de barras: '+esc(f.code)+'</p>':'')+
+    '<div class="center"><span class="rc-m">Precio: '+(f.pr?'<b>'+prTxt(f)+'</b>':'sin precio')+'</span><button class="lnk" data-a="price-open" data-id="'+esc(f.id)+'">'+(f.pr?'Cambiar':'Poner precio')+'</button></div>'+
     '<div class="center"><button class="btn sm" data-a="food-save" data-id="'+esc(f.id)+'">Guardar</button><button class="btn ghost sm" data-a="food-edit-cancel">Cancelar</button></div></div>';
 }
 function fdv(k){var v=ui.fdraft[k];return v===undefined||v===null?'':v}
@@ -1309,7 +1380,7 @@ function sFoods(){
     if(!fs.length)return;hits+=fs.length;
     html+='<h4>'+CATS[c]+'</h4>'+fs.map(function(f){
       if(ui.fedit===f.id)return '<div class="fr">'+foodEdit(f)+'</div>';
-      return '<div class="fr"><div class="frh"><button class="ed" data-a="food-edit" data-id="'+esc(f.id)+'">Editar</button><span class="fn">'+esc(f.n)+'<small>'+(f.t==='ud'?'1 ud ≈ '+f.u+' g · valores por 100 g':'valores por 100 '+f.t)+'</small></span><button class="x" data-a="food-del" data-id="'+esc(f.id)+'" aria-label="Borrar alimento">×</button></div>'+
+      return '<div class="fr"><div class="frh"><button class="ed" data-a="food-edit" data-id="'+esc(f.id)+'">Editar</button><span class="fn">'+esc(f.n)+'<small>'+(f.t==='ud'?'1 ud ≈ '+f.u+' g · valores por 100 g':'valores por 100 '+f.t)+(f.pr?' · '+prTxt(f):'')+'</small></span><button class="x" data-a="food-del" data-id="'+esc(f.id)+'" aria-label="Borrar alimento">×</button></div>'+
         '<div class="mfs">'+mi(f,'k','kcal')+mi(f,'p','Prot.')+mi(f,'h','Hidr.')+mi(f,'g','Grasas')+'</div></div>';
     }).join('');
   });
@@ -1552,11 +1623,13 @@ function vGastos(){
   return '<div class="shop">'+h+'</div>';
 }
 function gGuess(){var d=new Date(),m=d.getHours()*60+d.getMinutes();return m<690?'d':m<810?'a':m<1020?'c':m<1350?'n':'x'}
+function gDiff(a,est){if(!(a>0))return '';var d=a-est;return 'Has pagado '+eur(a)+' · '+(Math.abs(d)<0.005?'justo lo estimado':eur(Math.abs(d))+(d>0?' más':' menos')+' de lo estimado')}
 function sGasto(){
   var sh=ui.sheet,g=sh.g,ys=new Date();ys.setDate(ys.getDate()-1);var td=dkey(new Date()),yd=dkey(ys);
   return '<div class="ph"><h3>'+(sh.fromShop?'¿Cuánto ha costado?':sh.id?'Editar gasto':'Nuevo gasto')+'</h3><button class="x" data-a="close-sheet" aria-label="Cerrar">×</button></div>'+
-    (sh.fromShop?'<p class="rc-m" style="margin:4px 0 0">Compra para casa</p>':'<div class="chips" style="justify-content:center;margin-top:10px">'+['c','f'].map(function(t){return '<button class="chip" data-a="g-t" data-v="'+t+'" aria-pressed="'+(g.t===t)+'">'+(t==='c'?'🛒 Casa':'🍽 Fuera')+'</button>'}).join('')+'</div>')+
+    (sh.fromShop?'<p class="rc-m" style="margin:4px 0 0">Compra para casa'+(sh.est>0?' · lo del carro debería costar <b>'+eur(sh.est)+'</b>':'')+(sh.cmiss?' ('+sh.cmiss+' sin precio)':'')+'</p>':'<div class="chips" style="justify-content:center;margin-top:10px">'+['c','f'].map(function(t){return '<button class="chip" data-a="g-t" data-v="'+t+'" aria-pressed="'+(g.t===t)+'">'+(t==='c'?'🛒 Casa':'🍽 Fuera')+'</button>'}).join('')+'</div>')+
     '<div class="center" style="margin-top:12px"><span class="qrow g-amt"><input id="g-a" class="inp q" type="text" inputmode="decimal" placeholder="0,00" value="'+esc(g.a?String(g.a).replace('.',','):'')+'"><span class="u">€</span></span></div>'+
+    (sh.fromShop&&sh.est>0?'<p class="rc-m g-diff" id="g-diff" style="margin:6px 0 0">'+gDiff(g.a,sh.est)+'</p>':'')+
     (g.t==='f'?'<h4>Tipo</h4><div class="chips" style="justify-content:center">'+Object.keys(GK).map(function(k){return '<button class="chip" data-a="g-k" data-v="'+k+'" aria-pressed="'+(g.k===k)+'">'+GK[k]+'</button>'}).join('')+'</div>':'')+
     '<h4>Fecha</h4><div class="chips" style="justify-content:center"><button class="chip" data-a="g-d" data-v="'+td+'" aria-pressed="'+(g.d===td)+'">Hoy</button><button class="chip" data-a="g-d" data-v="'+yd+'" aria-pressed="'+(g.d===yd)+'">Ayer</button><input id="g-date" class="inp g-date'+(g.d!==td&&g.d!==yd?' on':'')+'" type="date" value="'+g.d+'" max="'+td+'"></div>'+
     '<div class="center" style="margin-top:16px"><button class="btn" data-a="g-save">'+(sh.fromShop?'Guardar':'Guardar')+'</button>'+(sh.id?'<button class="btn ghost" data-a="g-del">'+(ui.confirm==='gdel'?'Pulsa otra vez':'Borrar')+'</button>':'')+'</div>'+
@@ -1583,7 +1656,7 @@ function renderSheet(){
   if(!sh){el.hidden=true;el.innerHTML='';return}
   var old=el.querySelector('.panel'),top=old?old.scrollTop:0;
   keepFocus(function(){
-    el.innerHTML='<div class="scrim" data-a="close-sheet"></div><div class="panel'+(sh.t==='cook'?' full':'')+'" role="dialog" aria-modal="true">'+(sh.t==='recipe'?sRecipe():sh.t==='foods'?sFoods():sh.t==='foodpick'?sFoodPick():sh.t==='ficha'?sFicha():sh.t==='cook'?sCook():sh.t==='import'?sImport():sh.t==='ajustes'?sAjustes():sh.t==='scan'?sScan():sh.t==='copy'?sCopy():sh.t==='batch'?sBatch():sh.t==='fimport'?sFImport():sh.t==='rimport'?sRImport():sh.t==='gasto'?sGasto():sPick())+'</div>';
+    el.innerHTML='<div class="scrim" data-a="close-sheet"></div><div class="panel'+(sh.t==='cook'?' full':'')+'" role="dialog" aria-modal="true">'+(sh.t==='recipe'?sRecipe():sh.t==='foods'?sFoods():sh.t==='foodpick'?sFoodPick():sh.t==='ficha'?sFicha():sh.t==='cook'?sCook():sh.t==='import'?sImport():sh.t==='ajustes'?sAjustes():sh.t==='scan'?sScan():sh.t==='copy'?sCopy():sh.t==='batch'?sBatch():sh.t==='fimport'?sFImport():sh.t==='rimport'?sRImport():sh.t==='gasto'?sGasto():sh.t==='price'?sPrice():sPick())+'</div>';
     el.hidden=false;
   });
   var p=el.querySelector('.panel');if(p)p.scrollTop=top;
@@ -1636,9 +1709,9 @@ document.addEventListener('click',function(e){
     case 'g-d':{var ga3=document.getElementById('g-a');if(ga3)ui.sheet.g.a=num(ga3.value);ui.sheet.g.d=b.dataset.v;renderSheet();break}
     case 'g-save':{
       var gs=ui.sheet,gv=num(($('#g-a')||{}).value);if(!(gv>0)){toast('Pon el importe');break}
-      var rec2={id:gs.id||('g'+Date.now().toString(36)),d:gs.g.d,t:gs.g.t,k:gs.g.t==='f'?gs.g.k:'',a:Math.round(gv*100)/100};
+      var rec2={id:gs.id||('g'+Date.now().toString(36)),d:gs.g.d,t:gs.g.t,k:gs.g.t==='f'?gs.g.k:'',a:Math.round(gv*100)/100};if(gs.fromShop&&gs.est>0)rec2.e=Math.round(gs.est*100)/100;
       if(gs.id)S.gastos=S.gastos.map(function(x){return x.id===gs.id?rec2:x});else S.gastos.push(rec2);
-      save();ui.sheet=null;renderAll();toast('Gasto guardado · '+eur(rec2.a));break;
+      save();ui.sheet=null;renderAll();toast(gs.fromShop&&gs.est>0?gDiff(rec2.a,gs.est):'Gasto guardado · '+eur(rec2.a));break;
     }
     case 'g-del':{if(ui.confirm!=='gdel'){ui.confirm='gdel';renderSheet();break}ui.confirm=false;var gid=ui.sheet.id;S.gastos=S.gastos.filter(function(x){return x.id!==gid});save();ui.sheet=null;renderAll();toast('Gasto borrado');break}
     case 'g-per':ui.gp=b.dataset.v;ui.go=0;render();break;
@@ -1874,6 +1947,21 @@ document.addEventListener('click',function(e){
     case 'check':shopMark(b,id);break;
     case 'extra-check':shopMark(b,'x:'+S.extra[i].id);break;
     case 'extra-del':S.extra.splice(i,1);save();render();break;
+    case 'extra-q':{var xe=S.extra[i];if(!xe)break;xe.q=Math.max(1,(xe.q||1)+d);save();render();break}
+    case 'price-open':openPrice(id,false);break;
+    case 'price-x':openPrice(b.dataset.t,true);break;
+    case 'pr-m':prRead();ui.sheet.p.m=b.dataset.v;renderSheet();break;
+    case 'pr-save':{
+      prRead();var ps2=ui.sheet,P2=ps2.p;
+      if(ps2.x){if(!(P2.v>0)){toast('Pon el precio');break}S.hist[ps2.key].p=Math.round(P2.v*100)/100}
+      else{var pf4=food(ps2.id);if(!pf4)break;
+        if(P2.m==='k'&&!(P2.v>0)&&P2.w>0&&P2.t>0)P2.v=P2.t/P2.w;
+        var np=prNorm({m:P2.m,v:P2.v,s:P2.s});if(!np){toast('Pon el precio');break}
+        if(np.m==='e'&&!np.s){toast('Pon el tamaño del envase');break}
+        pf4.pr=np}
+      save();closeSheet();render();toast('Precio guardado');break;
+    }
+    case 'pr-del':{var ps3=ui.sheet;if(ps3.x){if(S.hist[ps3.key])delete S.hist[ps3.key].p}else{var pf5=food(ps3.id);if(pf5)delete pf5.pr}save();closeSheet();render();toast('Precio quitado');break}
     case 'extra-add':addExtra();break;
     case 'sug-add':{if(addProd(b.dataset.t)){toast('Añadido: '+b.dataset.t)}ui.xq='';save();render();break}
     case 'shop-hab':ui.shopHab=!ui.shopHab;render();if(ui.shopHab){var hb=document.querySelector('.hab-h');if(hb)hb.scrollIntoView({block:'nearest'})}break;
@@ -1881,7 +1969,7 @@ document.addEventListener('click',function(e){
     case 'hab-del':delete S.hist[b.dataset.k];save();render();break;
     case 'uncheck':if(ui.confirm!=='shop'){ui.confirm='shop';render();break}ui.confirm=false;delete S.chk[ckKey()];save();render();toast('Lista desmarcada');break;
     case 'shop-src':ui.shopSrc=!ui.shopSrc;render();break;
-    case 'shop-fin':{if(ui.confirm!=='fin'){ui.confirm='fin';render();break}ui.confirm=false;var nf=shopFinish();save();render();window.scrollTo(0,0);toast('Compra cerrada · '+nf+(nf==1?' producto':' productos'));ui.sheet={t:'gasto',fromShop:true,g:{t:'c',k:'',a:0,d:dkey(new Date())}};renderSheet();setTimeout(function(){var ga=document.getElementById('g-a');if(ga)ga.focus()},80);break}
+    case 'shop-fin':{if(ui.confirm!=='fin'){ui.confirm='fin';render();break}ui.confirm=false;var mo0=shopMoney();var nf=shopFinish();save();render();window.scrollTo(0,0);toast('Compra cerrada · '+nf+(nf==1?' producto':' productos'));ui.sheet={t:'gasto',fromShop:true,est:mo0.cart,cmiss:mo0.cmiss,g:{t:'c',k:'',a:0,d:dkey(new Date())}};renderSheet();setTimeout(function(){var ga=document.getElementById('g-a');if(ga)ga.focus()},80);break}
     case 'shop-unbuy':{if(ui.confirm!=='unbuy'){ui.confirm='unbuy';render();break}ui.confirm=false;if(S.bought)delete S.bought[ckKey()];save();render();toast('La lista vuelve a pedir todo');break}
     case 'shop-cart':ui.shopCart=ui.shopCart===false;render();break;
     case 'copy':{
@@ -1923,7 +2011,7 @@ function habHtml(){if(!S.hist)S.hist={};
   if(!all.length)return '<p class="rc-m" style="margin:0">Aún no hay habituales. Todo lo que añadas a mano se guardará aquí para la próxima vez.</p>';
   var abc=function(a,b){return a.t.localeCompare(b.t,'es',{sensitivity:'base'})};
   var top=all.filter(function(x){return x.n>=2}).sort(function(a,b){return b.n-a.n}).slice(0,8).sort(abc);
-  var row=function(x){var on=inList(x.t);return '<div class="hab"><button class="it'+(on?' done':'')+' pick" data-a="hab-tog" data-t="'+esc(x.t)+'"><span class="cb"></span><span class="n">'+esc(x.t)+'</span></button><button class="x" data-a="hab-del" data-k="'+esc(x.k)+'" aria-label="Quitar de habituales">×</button></div>'};
+  var row=function(x){var on=inList(x.t),hp=S.hist[x.k]&&S.hist[x.k].p;return '<div class="hab"><button class="it'+(on?' done':'')+' pick" data-a="hab-tog" data-t="'+esc(x.t)+'"><span class="cb"></span><span class="n">'+esc(x.t)+'</span>'+(hp?'<span class="a"><small class="pz">'+eur(hp)+'</small></span>':'')+'</button><button class="pbtn'+(hp?' has':'')+'" data-a="price-x" data-t="'+esc(x.t)+'" aria-label="Precio">€</button><button class="x" data-a="hab-del" data-k="'+esc(x.k)+'" aria-label="Quitar de habituales">×</button></div>'};
   return (top.length?'<h4>Los que más compras</h4>'+top.map(row).join(''):'')+'<h4>Todos</h4>'+all.sort(abc).map(row).join('');
 }
 document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.id==='aj-key'){e.preventDefault();e.target.blur();lsSet('rc-gkey',e.target.value.replace(/[^\x21-\x7E]/g,''));toast('Clave guardada');return}
@@ -1938,7 +2026,13 @@ document.addEventListener('input',function(e){
   var t=e.target,sh=ui.sheet;
   if(t.id==='extra-new'){ui.xq=t.value;renderSug();return}
   if(t.id==='fs-q'&&sh&&sh.t==='foods'){ui.fsq=t.value;renderSheet();return}
-  if(t.id==='g-a'&&sh&&sh.t==='gasto'){sh.g.a=num(t.value);return}
+  if(t.id==='g-a'&&sh&&sh.t==='gasto'){sh.g.a=num(t.value);var gdf=document.getElementById('g-diff');if(gdf)gdf.textContent=gDiff(sh.g.a,sh.est);return}
+  if(sh&&sh.t==='price'&&/^pr-/.test(t.id)){
+    var P3=sh.p;
+    if(!sh.x&&P3.m==='k'&&(t.id==='pr-w'||t.id==='pr-t')){var w3=num(($('#pr-w')||{}).value),t3=num(($('#pr-t')||{}).value);if(w3>0&&t3>0){var pv=document.getElementById('pr-v');if(pv)pv.value=String(Math.round(t3/w3*100)/100).replace('.',',')}}
+    if(!sh.x&&P3.m==='k'&&t.id==='pr-v'){var w4=num(($('#pr-w')||{}).value),v4=num(t.value),tt4=document.getElementById('pr-t');if(w4>0&&v4>0&&tt4)tt4.value=String(Math.round(w4*v4*100)/100).replace('.',',')}
+    prRead();var pp=document.getElementById('pr-prev');if(pp)pp.textContent=prPrev();return;
+  }
   if(t.id==='q'){ui.q=t.value;render()}
   else if(t.id==='pk-q'){ui.pq=t.value;renderSheet()}
   else if(t.id==='pk-fq'&&sh&&sh.t==='pick'){sh.fq=t.value;var pf3=food(sh.food),v3=num(t.value),ke=document.getElementById('pk-k'),me=document.getElementById('pk-m');if(pf3){if(ke)ke.textContent=nf0.format(lineK({f:pf3.id,q:v3}));if(me)me.textContent=mtxt(lineM({f:pf3.id,q:v3}))}}
